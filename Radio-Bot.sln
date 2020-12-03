@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30621.155
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "Radio-Bot", "Radio-Bot.njsproj", "{0DFA23F7-19B7-4810-AA0A-6253FD241343}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0DFA23F7-19B7-4810-AA0A-6253FD241343}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0DFA23F7-19B7-4810-AA0A-6253FD241343}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0DFA23F7-19B7-4810-AA0A-6253FD241343}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0DFA23F7-19B7-4810-AA0A-6253FD241343}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1B4809C6-2B6A-4E5C-8AB2-82A93ECF413C}
+	EndGlobalSection
+EndGlobal
