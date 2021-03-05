@@ -1,25 +1,25 @@
 require("dotenv").config();
 
-const Discord = require("discord.js");
-const ytdl = require("ytdl-core");
-const client = new Discord.Client();
+import { Client } from "discord.js";
+import ytdl, { getInfo } from "ytdl-core";
+const client = new Client();
 const queue = new Map();
-const fs = require("fs");
-const readline = require("readline");
-const winston = require("winston");
+import { readFileSync } from "fs";
+import { createInterface } from "readline";
+import { format as _format, createLogger, transports as _transports } from "winston";
 
-var radiostation = JSON.parse(fs.readFileSync("stations.json", "utf8")); // wczytanie stacji
+var radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 
 client.on("ready", () => {
 	// Inicjacja bota
-
 	var currStatus = 0;
 
 	setInterval(async () => {
 		var serverCount = client.guilds.cache.size; // liczenie serwerów
 		var statusList = [
-			"Zawołaj pomocy jak potrzebujesz 😉", // możliwe statusy
-			"na " + serverCount + " serwerach!",
+			// możliwe statusy
+			"Zawołaj pomocy jak potrzebujesz 😉",
+			"Jesem na " + serverCount + " serwerach!",
 			"Ram pam pam",
 			"🎶🎶🎶",
 		];
@@ -36,7 +36,7 @@ client.on("ready", () => {
 		});
 		//client.user.setActivity(`${statusList[random]}`);
 		currStatus++;
-	}, 60000); //delay w ms
+	}, 60000); //delay
 
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
@@ -44,34 +44,29 @@ client.on("ready", () => {
 	rl.question("Wcisnij enter aby zakonczyc\n", () => {
 		// zakończenie bota w konsoli
 		client.destroy();
-
 		process.exit();
 	});
 });
 
-const logFormat = winston.format.printf(({ level, timestamp, message }) => {
+const logFormat = _format.printf(({ level, timestamp, message }) => {
 	return `${level}:${timestamp}: ${message}`;
 });
 
-const logger = winston.createLogger({
+const logger = createLogger({
 	// logger winston
 	level: "info",
-	format: winston.format.combine(winston.format.timestamp(), logFormat),
-
+	format: _format.combine(_format.timestamp(), logFormat),
 	transports: [
 		// - Write all logs with level `error` and below to `error.log`
-		// - Write all logs with level `info` and below to `combined.log`
-
-		new winston.transports.File({ filename: "error.log", level: "error" }),
-		new winston.transports.File({ filename: "bot.log" }),
-
-		new winston.transports.Console(),
+		// - Write all logs with level `info` and below to `bot.log`
+		new _transports.File({ filename: "error.log", level: "error" }),
+		new _transports.File({ filename: "bot.log" }),
+		new _transports.Console(),
 	],
-
-	exceptionHandlers: [new winston.transports.File({ filename: "exceptions.log" })],
+	exceptionHandlers: [new _transports.File({ filename: "exceptions.log" })],
 });
 
-const rl = readline.createInterface({
+const rl = createInterface({
 	// interfejs konsoli
 	input: process.stdin,
 	output: process.stdout,
@@ -80,41 +75,29 @@ const rl = readline.createInterface({
 client.on("message", async (message) => {
 	// główny handler wiadomości
 	if (message.author.bot) return;
-
-	if (message.content.toLowerCase().includes("twoja stara")) {
-		if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) {
-			message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
-			return;
-		}
-		message.channel.send("zapierdala");
-	}
-
+	if (message.content.toLowerCase().includes("twoja stara"))
+		if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) return;
+		else message.channel.send("zapierdala");
 	if (
 		!message.content.startsWith("<@" + client.user + ">") &&
 		!message.content.startsWith("<@!" + client.user + ">")
-	) {
+	)
 		return;
-	}
-
 	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) {
 		message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
 		return;
 	}
 
 	const serverQueue = queue.get(message.guild.id);
-
 	const args = message.content.split(" ");
 
-	if (!args[1]) {
-		return message.channel.send("czego kurwa");
-	}
+	if (!args[1]) return message.channel.send("czego kurwa");
 
 	if (
 		args[1] === "odśwież" &&
 		(message.author.id === "409704685969342503" || message.author.id === "304668018108137472")
-	) {
+	)
 		return refresh(message);
-	}
 
 	switch (args[1]) {
 		case "odpal":
@@ -147,16 +130,14 @@ client.on("message", async (message) => {
 async function execute(message, serverQueue) {
 	const args = message.content.split(" ");
 	const voiceChannel = message.member.voice.channel;
-
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
 	const permissions = voiceChannel.permissionsFor(message.client.user);
+	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
 	if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
 		return message.channel.send("No bym wbił ale nie moge 😕");
-	if (serverQueue) {
-		if (serverQueue.voiceChannel != voiceChannel) {
+	if (serverQueue)
+		if (serverQueue.voiceChannel != voiceChannel)
 			return message.channel.send("Przecież ciebie nawet tu nie ma");
-		}
-	}
+
 	const mediaInfo = {
 		url: null,
 		name: null,
@@ -164,9 +145,8 @@ async function execute(message, serverQueue) {
 	};
 
 	if (args[2].includes("youtube.com") || args[2].includes("youtu.be")) {
-		//sprawdz czy youtube
 		try {
-			const ytinfo = await ytdl.getInfo(args[2]);
+			const ytinfo = await getInfo(args[2]);
 			mediaInfo.url = args[2];
 			mediaInfo.name = ytinfo.videoDetails.title;
 			mediaInfo.yt = true;
@@ -176,9 +156,7 @@ async function execute(message, serverQueue) {
 		}
 	} else {
 		const stationNr = findStation(args[2]);
-		if (stationNr == -1) {
-			return message.channel.send("O ch*j ci chodzi?");
-		}
+		if (stationNr == -1) return message.channel.send("O ch*j ci chodzi?");
 		const stationInfo = radiostation.stations[stationNr];
 		mediaInfo.url = stationInfo.url;
 		mediaInfo.name = stationInfo.desc;
@@ -219,12 +197,16 @@ async function execute(message, serverQueue) {
 	}
 }
 
-function skip(message, serverQueue) {
+function checkIfHere(message, text) {
 	const voiceChannel = message.member.voice.channel;
 	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
-	if (!serverQueue) return message.channel.send("Nie ma czego pominąć!");
+	if (!serverQueue && text != null) return message.channel.send(text);
 	if (serverQueue.voiceChannel != voiceChannel)
 		return message.channel.send("Przecież ciebie nawet tu nie ma");
+}
+
+function skip(message, serverQueue) {
+	checkIfHere(message, `Nie ma czego pominąć!`);
 	if (serverQueue.loop) serverQueue.media.shift();
 	serverQueue.connection.dispatcher.end();
 }
@@ -242,9 +224,7 @@ function play(guild) {
 		dispatcher = serverQueue.connection.play(
 			ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
 		);
-	} else {
-		dispatcher = serverQueue.connection.play(serverQueue.media[0].url);
-	}
+	} else dispatcher = serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
 		.on("finish", () => {
 			if (serverQueue.kloop) serverQueue.media.push(serverQueue.media[0]);
@@ -258,19 +238,13 @@ function play(guild) {
 		});
 
 	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-	if (serverQueue.lastName != serverQueue.media[0].name) {
+	if (serverQueue.lastName != serverQueue.media[0].name)
 		serverQueue.textChannel.send(`Właśnie leci: **${serverQueue.media[0].name}**`);
-	}
 	serverQueue.lastName = serverQueue.media[0].name;
 }
 
 function loop(message, serverQueue) {
-	const voiceChannel = message.member.voice.channel;
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
-	if (!serverQueue) return message.channel.send("Nie ma czego zapętlać!");
-	if (serverQueue.voiceChannel != voiceChannel)
-		return message.channel.send("Przecież ciebie nawet tu nie ma");
-
+	checkIfHere(message, `Nie ma czego zapętlać!`);
 	serverQueue.loop = !serverQueue.loop;
 	serverQueue.kloop = false;
 	if (serverQueue.loop) message.channel.send("Powtarzanie włączone");
@@ -278,12 +252,7 @@ function loop(message, serverQueue) {
 }
 
 function kloop(message, serverQueue) {
-	const voiceChannel = message.member.voice.channel;
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
-	if (!serverQueue) return message.channel.send("Nie ma czego zapętlać!");
-	if (serverQueue.voiceChannel != voiceChannel)
-		return message.channel.send("Przecież ciebie nawet tu nie ma");
-
+	checkIfHere(message, `Nie ma czego zapętlać!`);
 	serverQueue.kloop = !serverQueue.kloop;
 	serverQueue.loop = false;
 	if (serverQueue.kloop) message.channel.send("Powtarzanie kolejki włączone");
@@ -303,30 +272,23 @@ function findStation(searchWord) {
 }
 
 function stop_radio(message, serverQueue) {
-	const voiceChannel = message.member.voice.channel;
-	if (!message.member.voice.channel) return message.channel.send("Najpierw wbij gdzieś!");
-	if (!serverQueue) return message.channel.send("Przecież nie ma mnie");
-	if (serverQueue.voiceChannel != voiceChannel)
-		return message.channel.send("Przecież ciebie nawet tu nie ma");
-
+	checkIfHere(message, null);
 	message.channel.send("okok");
 	serverQueue.media = [];
 	serverQueue.connection.dispatcher.end();
 }
 
-function stop_radio_silent(serverQueue) {
+/*function stop_radio_silent(serverQueue) {
 	serverQueue.media = [];
 	serverQueue.connection.dispatcher.end();
 }
-
-//client.on("voiceStateUpdate", (oldMember) => {
-//    const serverQueue = queue.get(oldMember.guild.id)
-//    if (!serverQueue) return
-
-//    if (serverQueue.voiceChannel.members.size === 1) {
-//        stop_radio_silent(serverQueue);
-//    }
-//})
+client.on("voiceStateUpdate", (oldMember) => {
+	const serverQueue = queue.get(oldMember.guild.id)
+	if (!serverQueue) return
+	if (serverQueue.voiceChannel.members.size === 1) {
+		stop_radio_silent(serverQueue);
+	}
+})*/
 
 function list_stations(message) {
 	var i = 0;
@@ -347,8 +309,7 @@ function list_stations(message) {
 }
 
 function refresh(message) {
-	radiostation = JSON.parse(fs.readFileSync("stations.json"));
-
+	radiostation = JSON.parse(readFileSync("stations.json"));
 	message.channel.send("Odświeżam");
 }
 
