@@ -1,12 +1,12 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import Client from "discord.js";
+import { Client } from "discord.js";
 import ytdl from "ytdl-core";
 const client = new Client();
 const queue = new Map();
-import readFileSync from "fs";
-import createInterface from "readline";
+import { readFileSync } from "fs";
+import { createInterface } from "readline";
 import pkg from "winston";
 const { format: _format, createLogger, transports: _transports } = pkg;
 
