@@ -1,4 +1,5 @@
-import {} from ".env/config";
+import dotenv from "dotenv";
+dotenv.config();
 
 import { Client } from "discord.js";
 import pkg_ytdl from "ytdl-core";
@@ -7,8 +8,8 @@ const client = new Client();
 const queue = new Map();
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
-import pkg_wins from "winston";
-const { format: _format, createLogger, transports: _transports } = pkg_wins;
+import pkg from "winston";
+const { format: _format, createLogger, transports: _transports } = pkg;
 
 var radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 
