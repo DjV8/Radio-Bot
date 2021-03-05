@@ -199,7 +199,7 @@ async function execute(message, serverQueue) {
 	}
 }
 
-function checkIfHere(message, text) {
+function checkIfHere(message, serverQueue, text) {
 	const voiceChannel = message.member.voice.channel;
 	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
 	if (!serverQueue && text != null) return message.channel.send(text);
@@ -208,7 +208,7 @@ function checkIfHere(message, text) {
 }
 
 function skip(message, serverQueue) {
-	checkIfHere(message, `Nie ma czego pominąć!`);
+	checkIfHere(message, serverQueue, `Nie ma czego pominąć!`);
 	if (serverQueue.loop) serverQueue.media.shift();
 	serverQueue.connection.dispatcher.end();
 }
@@ -246,7 +246,7 @@ function play(guild) {
 }
 
 function loop(message, serverQueue) {
-	checkIfHere(message, `Nie ma czego zapętlać!`);
+	checkIfHere(message, serverQueue, `Nie ma czego zapętlać!`);
 	serverQueue.loop = !serverQueue.loop;
 	serverQueue.kloop = false;
 	if (serverQueue.loop) message.channel.send("Powtarzanie włączone");
@@ -254,7 +254,7 @@ function loop(message, serverQueue) {
 }
 
 function kloop(message, serverQueue) {
-	checkIfHere(message, `Nie ma czego zapętlać!`);
+	checkIfHere(message, serverQueue, `Nie ma czego zapętlać!`);
 	serverQueue.kloop = !serverQueue.kloop;
 	serverQueue.loop = false;
 	if (serverQueue.kloop) message.channel.send("Powtarzanie kolejki włączone");
@@ -274,7 +274,7 @@ function findStation(searchWord) {
 }
 
 function stop_radio(message, serverQueue) {
-	checkIfHere(message, null);
+	checkIfHere(message, serverQueue, null);
 	message.channel.send("okok");
 	serverQueue.media = [];
 	serverQueue.connection.dispatcher.end();
