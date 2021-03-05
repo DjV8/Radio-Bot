@@ -6,7 +6,8 @@ const client = new Client();
 const queue = new Map();
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
-import { format as _format, createLogger, transports as _transports } from "winston";
+import pkg from "winston";
+const { format: _format, createLogger, transports: _transports } = pkg;
 
 var radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 
