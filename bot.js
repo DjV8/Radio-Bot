@@ -2,8 +2,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { Client } from "discord.js";
-import pkg_ytdl from "ytdl-core";
-const { getInfo, ytdl } = pkg_ytdl;
+import {} from "ytdl-core";
 const client = new Client();
 const queue = new Map();
 import { readFileSync } from "fs";
