@@ -1,4 +1,4 @@
-require("dotenv").config();
+import {} from "dotenv/config";
 
 import { Client } from "discord.js";
 import pkg_ytdl from "ytdl-core";
