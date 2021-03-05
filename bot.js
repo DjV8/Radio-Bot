@@ -148,7 +148,7 @@ async function execute(message, serverQueue) {
 
 	if (args[2].includes("youtube.com") || args[2].includes("youtu.be")) {
 		try {
-			const ytinfo = await getInfo(args[2]);
+			const ytinfo = await ytdl.getInfo(args[2]);
 			mediaInfo.url = args[2];
 			mediaInfo.name = ytinfo.videoDetails.title;
 			mediaInfo.yt = true;
