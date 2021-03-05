@@ -3,32 +3,54 @@ dotenv.config();
 
 import { Client } from "discord.js";
 import ytdl from "ytdl-core";
-const client = new Client();
-const queue = new Map();
+const CLIENT = new Client();
+const QUEUE = new Map();
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
-import pkg from "winston";
-const { format: _format, createLogger, transports: _transports } = pkg;
+import pkg from "winston"; // logger
+const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = pkg;
 
 var radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 
-client.on("ready", () => {
-	// Inicjacja bota
+const CONSOLE = createInterface({
+	input: process.stdin,
+	output: process.stdout,
+});
+
+const LOGFORMAT = _FORMAT.printf(({ level, timestamp, message }) => {
+	return `${level}:${timestamp}: ${message}`;
+});
+
+const logger = createLogger({
+	level: "info",
+	format: _FORMAT.combine(_FORMAT.timestamp(), LOGFORMAT),
+	transports: [
+		// - Write all logs with level `error` and below to `error.log`
+		// - Write all logs with level `info` and below to `bot.log`
+		new _TRANSPORTS.File({ filename: "error.log", level: "error" }),
+		new _TRANSPORTS.File({ filename: "bot.log" }),
+		new _TRANSPORTS.Console(),
+	],
+	exceptionHandlers: [new _TRANSPORTS.File({ filename: "exceptions.log" })],
+});
+
+CLIENT.on("ready", () => {
 	var currStatus = 0;
+	var serverCount = CLIENT.guilds.cache.size;
+	var statusList = [
+		"Zawołaj pomocy jak potrzebujesz 😉",
+		`Jesem na ${serverCount} serwerach!`,
+		"Ram pam pam",
+		"🎶🎶🎶",
+	];
 
 	setInterval(async () => {
-		var serverCount = client.guilds.cache.size; // liczenie serwerów
-		var statusList = [
-			// możliwe statusy
-			"Zawołaj pomocy jak potrzebujesz 😉",
-			"Jesem na " + serverCount + " serwerach!",
-			"Ram pam pam",
-			"🎶🎶🎶",
-		];
+		serverCount = CLIENT.guilds.cache.size;
+		statusList[1] = `Jesem na ${serverCount} serwerach!`;
+	}, 864e5); //co 24h
 
-		if (currStatus == statusList.length) currStatus = 0;
-
-		client.user.setPresence({
+	setInterval(async () => {
+		CLIENT.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
 			activity: {
 				name: `${statusList[currStatus]}`,
@@ -36,61 +58,36 @@ client.on("ready", () => {
 			},
 			status: "online",
 		});
-		//client.user.setActivity(`${statusList[random]}`);
 		currStatus++;
-	}, 60000); //delay
+		if (currStatus == statusList.length) currStatus = 0;
+	}, 6e5); // co 6 min
 
-	logger.info(`Zalogowano jako ${client.user.tag}!`);
+	logger.info(`Zalogowano jako ${CLIENT.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
-
-	rl.question("Wcisnij enter aby zakonczyc\n", () => {
-		// zakończenie bota w konsoli
-		client.destroy();
+	CONSOLE.question("Wcisnij enter aby zakonczyc\n", () => {
+		CLIENT.destroy();
 		process.exit();
 	});
 });
 
-const logFormat = _format.printf(({ level, timestamp, message }) => {
-	return `${level}:${timestamp}: ${message}`;
-});
-
-const logger = createLogger({
-	// logger winston
-	level: "info",
-	format: _format.combine(_format.timestamp(), logFormat),
-	transports: [
-		// - Write all logs with level `error` and below to `error.log`
-		// - Write all logs with level `info` and below to `bot.log`
-		new _transports.File({ filename: "error.log", level: "error" }),
-		new _transports.File({ filename: "bot.log" }),
-		new _transports.Console(),
-	],
-	exceptionHandlers: [new _transports.File({ filename: "exceptions.log" })],
-});
-
-const rl = createInterface({
-	// interfejs konsoli
-	input: process.stdin,
-	output: process.stdout,
-});
-
-client.on("message", async (message) => {
+CLIENT.on("message", async (message) => {
 	// główny handler wiadomości
 	if (message.author.bot) return;
-	if (message.content.toLowerCase().includes("twoja stara"))
-		if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) return;
-		else message.channel.send("zapierdala");
-	if (
-		!message.content.startsWith("<@" + client.user + ">") &&
-		!message.content.startsWith("<@!" + client.user + ">")
-	)
-		return;
+
 	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) {
 		message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
 		return;
 	}
+	if (message.content.toLowerCase().includes("twoja stara"))
+		if (message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
+			message.channel.send("zapierdala");
+	if (
+		!message.content.startsWith("<@" + CLIENT.user + ">") &&
+		!message.content.startsWith("<@!" + CLIENT.user + ">")
+	)
+		return;
 
-	const serverQueue = queue.get(message.guild.id);
+	const SERVERQUEUE = QUEUE.get(message.guild.id);
 	const args = message.content.split(" ");
 
 	if (!args[1]) return message.channel.send("czego kurwa");
@@ -103,10 +100,10 @@ client.on("message", async (message) => {
 
 	switch (args[1]) {
 		case "odpal":
-			execute(message, serverQueue);
+			execute(message, SERVERQUEUE);
 			break;
 		case "idź":
-			stop_radio(message, serverQueue);
+			stop_radio(message, SERVERQUEUE);
 			break;
 		case "stacje":
 			list_stations(message);
@@ -115,13 +112,13 @@ client.on("message", async (message) => {
 			help(message);
 			break;
 		case "pomiń":
-			skip(message, serverQueue);
+			skip(message, SERVERQUEUE);
 			break;
 		case "loop":
-			loop(message, serverQueue);
+			loop(message, SERVERQUEUE);
 			break;
 		case "kloop":
-			kloop(message, serverQueue);
+			kloop(message, SERVERQUEUE);
 			break;
 		default:
 			message.reply("nie wie jak korzystać z bota");
@@ -129,45 +126,44 @@ client.on("message", async (message) => {
 	}
 });
 
-async function execute(message, serverQueue) {
-	const args = message.content.split(" ");
-	const voiceChannel = message.member.voice.channel;
-	const permissions = voiceChannel.permissionsFor(message.client.user);
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
+async function execute(message, queue) {
+	var voiceChannel = message.member.voice.channel;
+	var textChannel = message.channel;
+	if (!checkIfOnChannel(voiceChannel, textChannel)) return;
+	const permissions = voiceChannel.permissionsFor(CLIENT.user);
 	if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
-		return message.channel.send("No bym wbił ale nie moge 😕");
-	if (serverQueue)
-		if (serverQueue.voiceChannel != voiceChannel)
-			return message.channel.send("Przecież ciebie nawet tu nie ma");
+		return textChannel.send("No bym wbił ale nie moge 😕");
+	if (!checkIfOnSameVC(voiceChannel, textChannel, queue)) return;
 
-	const mediaInfo = {
+	const MEDIAINFO = {
 		url: null,
 		name: null,
 		yt: null,
 	};
+	const args = message.content.split(" ");
 
 	if (args[2].includes("youtube.com") || args[2].includes("youtu.be")) {
 		try {
 			const ytinfo = await ytdl.getInfo(args[2]);
-			mediaInfo.url = args[2];
-			mediaInfo.name = ytinfo.videoDetails.title;
-			mediaInfo.yt = true;
+			MEDIAINFO.url = args[2];
+			MEDIAINFO.name = ytinfo.videoDetails.title;
+			MEDIAINFO.yt = true;
 		} catch (err) {
 			logger.info(err);
-			return message.channel.send("Nie ma takiego filmu");
+			return textChannel.send("Nie ma takiego filmu");
 		}
 	} else {
 		const stationNr = findStation(args[2]);
-		if (stationNr == -1) return message.channel.send("O ch*j ci chodzi?");
-		const stationInfo = radiostation.stations[stationNr];
-		mediaInfo.url = stationInfo.url;
-		mediaInfo.name = stationInfo.desc;
-		mediaInfo.yt = false;
+		if (stationNr == -1) return textChannel.send("O ch*j ci chodzi?");
+		const STATIONINFO = radiostation.stations[stationNr];
+		MEDIAINFO.url = STATIONINFO.url;
+		MEDIAINFO.name = STATIONINFO.desc;
+		MEDIAINFO.yt = false;
 	}
 
-	if (!serverQueue) {
-		const mediaConstruct = {
-			textChannel: message.channel,
+	if (!queue) {
+		const MEDIACONSTRUCT = {
+			textChannel: textChannel,
 			voiceChannel: voiceChannel,
 			connection: null,
 			media: [],
@@ -176,119 +172,144 @@ async function execute(message, serverQueue) {
 			loop: false,
 			kloop: false,
 		};
-		queue.set(message.guild.id, mediaConstruct);
-		mediaConstruct.media.push(mediaInfo);
+		QUEUE.set(message.guild.id, MEDIACONSTRUCT);
+		MEDIACONSTRUCT.media.push(MEDIAINFO);
 
 		try {
 			var connection = await voiceChannel.join();
 			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
-			mediaConstruct.connection = connection;
+			MEDIACONSTRUCT.connection = connection;
 			play(message.guild);
 			connection.on("disconnect", () => {
-				queue.delete(message.guild.id);
+				QUEUE.delete(message.guild.id);
 				logger.info(`Rozlaczono z kanalem ${voiceChannel.name}!`);
 			});
 		} catch (err) {
 			logger.error(err);
-			queue.delete(message.guild.id);
+			QUEUE.delete(message.guild.id);
 			return;
 		}
 	} else {
-		serverQueue.media.push(mediaInfo);
-		message.channel.send(`${mediaInfo.name} dodano do kolejki!`);
+		queue.media.push(MEDIAINFO);
+		textChannel.send(`${MEDIAINFO.name} dodano do kolejki!`);
 	}
 }
 
-function checkIfHere(message, serverQueue, text) {
-	const voiceChannel = message.member.voice.channel;
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
-	if (!serverQueue && text != null) return message.channel.send(text);
-	if (serverQueue.voiceChannel != voiceChannel)
-		return message.channel.send("Przecież ciebie nawet tu nie ma");
+function checkIfOnChannel(voiceChannel, textChannel) {
+	if (!voiceChannel) {
+		textChannel.send("Najpierw wbij gdzieś!");
+		return false;
+	}
+	return true;
+}
+function checkIfQueue(queue, textChannel) {
+	if (!queue) {
+		textChannel.send("Brak kolejki!");
+		return false;
+	}
+	return true;
+}
+function checkIfOnSameVC(voiceChannel, textChannel, queue) {
+	if (queue && queue.voiceChannel != voiceChannel) {
+		textChannel.send("Przecież ciebie nawet tu nie ma");
+		return false;
+	}
+	return true;
+}
+function checkOnOrderCHange(voiceChannel, textChannel, queue) {
+	if (
+		!checkIfOnChannel(voiceChannel, textChannel) ||
+		!checkIfQueue(queue, textChannel) ||
+		!checkIfOnSameVC(voiceChannel, textChannel, queue)
+	)
+		return false;
+	return true;
 }
 
-function skip(message, serverQueue) {
-	checkIfHere(message, serverQueue, `Nie ma czego pominąć!`);
-	if (serverQueue.loop) serverQueue.media.shift();
-	serverQueue.connection.dispatcher.end();
+function skip(message, queue) {
+	var voiceChannel = message.member.voice.channel;
+	var textChannel = message.channel;
+	if (!checkOnOrderCHange(voiceChannel, textChannel, queue)) return;
+	if (queue.loop) queue.media.shift();
+	queue.connection.dispatcher.end();
 }
 
 function play(guild) {
-	const serverQueue = queue.get(guild.id);
+	const SERVERQUEUE = QUEUE.get(guild.id);
 
-	if (!serverQueue.media[0]) {
-		serverQueue.voiceChannel.leave();
+	if (!SERVERQUEUE.media[0]) {
+		SERVERQUEUE.voiceChannel.leave();
 		return;
 	}
 
 	var dispatcher;
-	if (serverQueue.media[0].yt) {
-		dispatcher = serverQueue.connection.play(
-			ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
+	if (SERVERQUEUE.media[0].yt) {
+		dispatcher = SERVERQUEUE.connection.play(
+			ytdl(SERVERQUEUE.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
 		);
-	} else dispatcher = serverQueue.connection.play(serverQueue.media[0].url);
+	} else dispatcher = SERVERQUEUE.connection.play(SERVERQUEUE.media[0].url);
 	dispatcher
 		.on("finish", () => {
-			if (serverQueue.kloop) serverQueue.media.push(serverQueue.media[0]);
-			if (!serverQueue.loop) serverQueue.media.shift();
+			if (SERVERQUEUE.kloop) SERVERQUEUE.media.push(SERVERQUEUE.media[0]);
+			if (!SERVERQUEUE.loop) SERVERQUEUE.media.shift();
 			play(guild);
 		})
 		.on("error", (err) => {
 			logger.error(err);
-			serverQueue.textChannel.send(`Coś się popierdoliło: ${err}`);
-			serverQueue.voiceChannel.leave();
+			SERVERQUEUE.textChannel.send(`Coś się popierdoliło: ${err}`);
+			SERVERQUEUE.voiceChannel.leave();
 		});
 
-	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-	if (serverQueue.lastName != serverQueue.media[0].name)
-		serverQueue.textChannel.send(`Właśnie leci: **${serverQueue.media[0].name}**`);
-	serverQueue.lastName = serverQueue.media[0].name;
+	dispatcher.setVolumeLogarithmic(SERVERQUEUE.volume / 5);
+	if (SERVERQUEUE.lastName != SERVERQUEUE.media[0].name)
+		SERVERQUEUE.textChannel.send(`Właśnie leci: **${SERVERQUEUE.media[0].name}**`);
+	SERVERQUEUE.lastName = SERVERQUEUE.media[0].name;
 }
 
-function loop(message, serverQueue) {
-	checkIfHere(message, serverQueue, `Nie ma czego zapętlać!`);
-	serverQueue.loop = !serverQueue.loop;
-	serverQueue.kloop = false;
-	if (serverQueue.loop) message.channel.send("Powtarzanie włączone");
-	else message.channel.send("Powtarzanie wyłączone");
+function loop(message, queue) {
+	var textChannel = message.channel;
+	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
+	queue.loop = !queue.loop;
+	queue.kloop = false;
+	if (queue.loop) textChannel.send("Powtarzanie włączone");
+	else textChannel.send("Powtarzanie wyłączone");
 }
 
-function kloop(message, serverQueue) {
-	checkIfHere(message, serverQueue, `Nie ma czego zapętlać!`);
-	serverQueue.kloop = !serverQueue.kloop;
-	serverQueue.loop = false;
-	if (serverQueue.kloop) message.channel.send("Powtarzanie kolejki włączone");
-	else message.channel.send("Powtarzanie kolejki wyłączone");
+function kloop(message, queue) {
+	var textChannel = message.channel;
+	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
+	queue.kloop = !queue.kloop;
+	queue.loop = false;
+	if (queue.kloop) textChannel.send("Powtarzanie kolejki włączone");
+	else textChannel.send("Powtarzanie kolejki wyłączone");
 }
 
 function findStation(searchWord) {
 	var i = 0;
-
 	while (radiostation.stations[i]) {
-		if (radiostation.stations[i].shortname === searchWord) {
-			return i;
-		}
+		if (radiostation.stations[i].shortname === searchWord) return i;
 		i++;
 	}
 	return -1;
 }
 
-function stop_radio(message, serverQueue) {
-	checkIfHere(message, serverQueue, null);
-	message.channel.send("okok");
-	serverQueue.media = [];
-	serverQueue.connection.dispatcher.end();
+function stop_radio(message, queue) {
+	var textChannel = message.channel;
+	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
+	textChannel.send("okok");
+	queue.media = [];
+	queue.connection.dispatcher.end();
 }
 
-/*function stop_radio_silent(serverQueue) {
-	serverQueue.media = [];
-	serverQueue.connection.dispatcher.end();
+/*function stop_radio_silent(queue) {
+	queue.media = [];
+	queue.connection.dispatcher.end();
 }
-client.on("voiceStateUpdate", (oldMember) => {
-	const serverQueue = queue.get(oldMember.guild.id)
-	if (!serverQueue) return
-	if (serverQueue.voiceChannel.members.size === 1) {
-		stop_radio_silent(serverQueue);
+CLIENT.on("voiceStateUpdate", (oldMember) => {
+	const queue = QUEUE.get(oldMember.guild.id)
+	if (!queue) return
+	if (queue.voiceChannel.members.size === 1) {
+		stop_radio_silent(queue);
 	}
 })*/
 
@@ -307,7 +328,7 @@ function list_stations(message) {
 		i++;
 	}
 
-	message.channel.send(msg.concat("```"));
+	message.channel.send(msg.concat("````"));
 }
 
 function refresh(message) {
@@ -321,8 +342,8 @@ function help(message) {
 	);
 }
 
-client.on("error", (error) => {
+CLIENT.on("error", (error) => {
 	logger.error(error);
 });
 
-client.login(process.env.BOT_TOKEN);
+CLIENT.login(process.env.BOT_TOKEN);
