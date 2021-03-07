@@ -35,32 +35,33 @@ const logger = createLogger({
 });
 
 CLIENT.on("ready", () => {
-	var currStatus = 0;
-	var serverCount = CLIENT.guilds.cache.size;
-	var statusList = [
-		"Zawołaj pomocy jak potrzebujesz 😉",
-		`Jesem na ${serverCount} serwerach!`,
-		"Ram pam pam",
-		"🎶🎶🎶",
-	];
+	let botStatus = {
+		id: 0,
+		list: [
+			"Zawołaj pomocy jak potrzebujesz 😉",
+			`Jesem na ${CLIENT.guilds.cache.size} serwerach!`,
+			"Ram pam pam",
+			"🎶🎶🎶",
+		],
+	};
 
-	setInterval(async () => {
-		serverCount = CLIENT.guilds.cache.size;
-		statusList[1] = `Jesem na ${serverCount} serwerach!`;
-	}, 864e5); //co 24h
+	setInterval(
+		async () => (botStatus.list[1] = `Jesem na ${CLIENT.guilds.cache.size} serwerach!`),
+		864e5
+	); //co 24h
 
 	setInterval(async () => {
 		CLIENT.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
 			activity: {
-				name: `${statusList[currStatus]}`,
+				name: botStatus.list[botStatus.id],
 				type: "PLAYING",
 			},
 			status: "online",
 		});
-		currStatus++;
-		if (currStatus == statusList.length) currStatus = 0;
-	}, 6e5); // co 6 min
+		botStatus.id++;
+		if (botStatus.id == botStatus.list.length) botStatus.id = 0;
+	}, 6e5); // co 10 min
 
 	logger.info(`Zalogowano jako ${CLIENT.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
@@ -74,13 +75,11 @@ CLIENT.on("message", async (message) => {
 	// główny handler wiadomości
 	if (message.author.bot) return;
 
-	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES")) {
-		message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
-		return;
-	}
+	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
+		return message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
+
 	if (message.content.toLowerCase().includes("twoja stara"))
-		if (message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
-			message.channel.send("zapierdala");
+		return message.channel.send("zapierdala");
 	if (
 		!message.content.startsWith("<@" + CLIENT.user + ">") &&
 		!message.content.startsWith("<@!" + CLIENT.user + ">")
@@ -88,19 +87,18 @@ CLIENT.on("message", async (message) => {
 		return;
 
 	const SERVERQUEUE = QUEUE.get(message.guild.id);
-	const args = message.content.split(" ");
+	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
+	const ADMINID = process.env.ADMIN.split(",");
 
-	if (!args[1]) return message.channel.send("czego kurwa");
+	if (!ARGS[1]) return message.channel.send("czego kurwa");
 
-	if (
-		args[1] === "odśwież" &&
-		(message.author.id === "409704685969342503" || message.author.id === "304668018108137472")
-	)
-		return refresh(message);
-
-	switch (args[1]) {
+	switch (ARGS[1]) {
+		case "odśwież":
+			for (let i = 0; i < ADMINID.length; i++)
+				if (message.author.id === ADMINID[i]) refresh(message.channel);
+			break;
 		case "odpal":
-			execute(message, SERVERQUEUE);
+			execute(message, SERVERQUEUE, ARGS[2]);
 			break;
 		case "idź":
 			stop_radio(message, SERVERQUEUE);
@@ -126,7 +124,7 @@ CLIENT.on("message", async (message) => {
 	}
 });
 
-async function execute(message, queue) {
+async function execute(message, queue, url) {
 	var voiceChannel = message.member.voice.channel;
 	var textChannel = message.channel;
 	if (!checkIfOnChannel(voiceChannel, textChannel)) return;
@@ -135,30 +133,29 @@ async function execute(message, queue) {
 		return textChannel.send("No bym wbił ale nie moge 😕");
 	if (!checkIfOnSameVC(voiceChannel, textChannel, queue)) return;
 
-	const MEDIAINFO = {
-		url: null,
-		name: null,
-		yt: null,
-	};
-	const args = message.content.split(" ");
+	let mediaInfo;
 
-	if (args[2].includes("youtube.com") || args[2].includes("youtu.be")) {
+	if (url.includes("youtu")) {
 		try {
-			const ytinfo = await ytdl.getInfo(args[2]);
-			MEDIAINFO.url = args[2];
-			MEDIAINFO.name = ytinfo.videoDetails.title;
-			MEDIAINFO.yt = true;
+			const ytinfo = await ytdl.getInfo(url);
+			mediaInfo = {
+				url: url,
+				name: ytinfo.videoDetails.title,
+				yt: true,
+			};
 		} catch (err) {
 			logger.info(err);
 			return textChannel.send("Nie ma takiego filmu");
 		}
 	} else {
-		const stationNr = findStation(args[2]);
+		const stationNr = findStation(url);
 		if (stationNr == -1) return textChannel.send("O ch*j ci chodzi?");
 		const STATIONINFO = radiostation.stations[stationNr];
-		MEDIAINFO.url = STATIONINFO.url;
-		MEDIAINFO.name = STATIONINFO.desc;
-		MEDIAINFO.yt = false;
+		mediaInfo = {
+			url: STATIONINFO.url,
+			name: STATIONINFO.desc,
+			yt: false,
+		};
 	}
 
 	if (!queue) {
@@ -173,7 +170,7 @@ async function execute(message, queue) {
 			kloop: false,
 		};
 		QUEUE.set(message.guild.id, MEDIACONSTRUCT);
-		MEDIACONSTRUCT.media.push(MEDIAINFO);
+		MEDIACONSTRUCT.media.push(mediaInfo);
 
 		try {
 			var connection = await voiceChannel.join();
@@ -190,8 +187,8 @@ async function execute(message, queue) {
 			return;
 		}
 	} else {
-		queue.media.push(MEDIAINFO);
-		textChannel.send(`${MEDIAINFO.name} dodano do kolejki!`);
+		queue.media.push(mediaInfo);
+		textChannel.send(`${mediaInfo.name} dodano do kolejki!`);
 	}
 }
 
@@ -331,9 +328,9 @@ function list_stations(message) {
 	message.channel.send(msg.concat("````"));
 }
 
-function refresh(message) {
+function refresh(channel) {
 	radiostation = JSON.parse(readFileSync("stations.json"));
-	message.channel.send("Odświeżam");
+	channel.send("Odświeżam");
 }
 
 function help(message) {
