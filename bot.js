@@ -25,8 +25,6 @@ const logger = createLogger({
 	level: "info",
 	format: _FORMAT.combine(_FORMAT.timestamp(), LOGFORMAT),
 	transports: [
-		// - Write all logs with level `error` and below to `error.log`
-		// - Write all logs with level `info` and below to `bot.log`
 		new _TRANSPORTS.File({ filename: "error.log", level: "error" }),
 		new _TRANSPORTS.File({ filename: "bot.log" }),
 		new _TRANSPORTS.Console(),
@@ -72,12 +70,9 @@ CLIENT.on("ready", () => {
 });
 
 CLIENT.on("message", async (message) => {
-	// główny handler wiadomości
 	if (message.author.bot) return;
-
 	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
 		return message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
-
 	if (message.content.toLowerCase().includes("twoja stara"))
 		return message.channel.send("zapierdala");
 	if (
@@ -91,7 +86,6 @@ CLIENT.on("message", async (message) => {
 	const ADMINID = process.env.ADMIN.split(",");
 
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
-
 	switch (ARGS[1]) {
 		case "odśwież":
 			for (let i = 0; i < ADMINID.length; i++)
@@ -107,16 +101,16 @@ CLIENT.on("message", async (message) => {
 			list_stations(message);
 			break;
 		case "pomocy":
-			help(message);
+			message.channel.send(
+				"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
+			);
 			break;
 		case "pomiń":
 			skip(message, SERVERQUEUE);
 			break;
 		case "loop":
-			loop(message, SERVERQUEUE);
-			break;
 		case "kloop":
-			kloop(message, SERVERQUEUE);
+			loop(message, SERVERQUEUE, ARGS[1]);
 			break;
 		default:
 			message.reply("nie wie jak korzystać z bota");
@@ -263,26 +257,23 @@ function play(guild) {
 	SERVERQUEUE.lastName = SERVERQUEUE.media[0].name;
 }
 
-function loop(message, queue) {
-	var textChannel = message.channel;
-	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
-	queue.loop = !queue.loop;
-	queue.kloop = false;
-	if (queue.loop) textChannel.send("Powtarzanie włączone");
-	else textChannel.send("Powtarzanie wyłączone");
-}
-
-function kloop(message, queue) {
-	var textChannel = message.channel;
-	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
-	queue.kloop = !queue.kloop;
-	queue.loop = false;
-	if (queue.kloop) textChannel.send("Powtarzanie kolejki włączone");
-	else textChannel.send("Powtarzanie kolejki wyłączone");
+function loop(message, queue, loopMode) {
+	if (!checkOnOrderCHange(message.member.voice.channel, message.channel, queue)) return;
+	let text = "Powtarzanie ";
+	if (loopMode === "loop") {
+		queue.kloop = false;
+		queue.loop = !queue.loop; // do przyszłej optymalizacji
+	} else {
+		queue.loop = false;
+		queue.kloop = !queue.kloop; // do przyszłej optymalizacji
+		text = text.concat("kolejki ");
+	}
+	if (queue.loop == queue.kloop) return message.channel.send((text = text.concat("wyłączone")));
+	else return message.channel.send((text = text.concat("włączone")));
 }
 
 function findStation(searchWord) {
-	var i = 0;
+	let i = 0;
 	while (radiostation.stations[i]) {
 		if (radiostation.stations[i].shortname === searchWord) return i;
 		i++;
@@ -291,9 +282,8 @@ function findStation(searchWord) {
 }
 
 function stop_radio(message, queue) {
-	var textChannel = message.channel;
-	if (!checkOnOrderCHange(message.member.voice.channel, textChannel, queue)) return;
-	textChannel.send("okok");
+	if (!checkOnOrderCHange(message.member.voice.channel, message.channel, queue)) return;
+	message.channel.send("okok");
 	queue.media = [];
 	queue.connection.dispatcher.end();
 }
@@ -311,32 +301,18 @@ CLIENT.on("voiceStateUpdate", (oldMember) => {
 })*/
 
 function list_stations(message) {
-	var i = 0;
-
-	var msg = "```Dostępne stacje:";
-
+	let i = 0;
+	let msg = "```Dostępne stacje:";
 	while (radiostation.stations[i]) {
-		msg = msg.concat(
-			"\n",
-			radiostation.stations[i].shortname,
-			" - ",
-			radiostation.stations[i].desc
-		);
+		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
 		i++;
 	}
-
 	message.channel.send(msg.concat("````"));
 }
 
 function refresh(channel) {
 	radiostation = JSON.parse(readFileSync("stations.json"));
 	channel.send("Odświeżam");
-}
-
-function help(message) {
-	message.channel.send(
-		"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
-	);
 }
 
 CLIENT.on("error", (error) => {
