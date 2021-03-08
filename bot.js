@@ -265,10 +265,10 @@ function queue(message, queue) {
 	message.channel.send(text.concat("```"));
 }
 
-CLIENT.on("voiceStateUpdate", (oldMember) => {
+/*CLIENT.on("voiceStateUpdate", (oldMember) => {
 	const SERVERQUEUE = QUEUE.get(oldMember.guild.id);
 	if (SERVERQUEUE.voiceChannel.members.size === 1) stop_radio(SERVERQUEUE);
-});
+});*/
 
 function list_stations(channel) {
 	let i = 0,
