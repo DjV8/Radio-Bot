@@ -83,17 +83,14 @@ CLIENT.on("message", async (message) => {
 		!message.content.startsWith("<@!" + CLIENT.user + ">")
 	)
 		return;
-
-	const SERVERQUEUE = QUEUE.get(message.guild.id);
-	//const ARGS = message.content.replace(/\s+/g, " ").split(" ");
-	const ARGS = message.content.split(" ");
-	const ADMINID = process.env.ADMIN.split(",");
-
+	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
-
-	if (ARGS[1] == "odśwież")
+	const SERVERQUEUE = QUEUE.get(message.guild.id);
+	if (ARGS[1] == "odśwież") {
+		const ADMINID = process.env.ADMIN.split(",");
 		for (let i = 0; i < ADMINID.length; i++)
 			if (message.author.id === ADMINID[i]) return refresh(message.channel);
+	}
 	if (ARGS[1] == "stacje") return list_stations(message.channel);
 	if (ARGS[1] == "pomocy")
 		return message.channel.send(
