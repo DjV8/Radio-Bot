@@ -71,19 +71,22 @@ CLIENT.on("ready", () => {
 
 CLIENT.on("message", async (message) => {
 	if (message.author.bot) return;
+
 	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
 		return message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
+
 	if (message.content.toLowerCase().includes("twoja stara"))
 		return message.channel.send("zapierdala");
+
 	if (
 		!message.content.startsWith("<@" + CLIENT.user + ">") &&
 		!message.content.startsWith("<@!" + CLIENT.user + ">")
 	)
 		return;
 
-	const SERVERQUEUE = QUEUE.get(message.guild.id),
-		ARGS = message.content.replace(/\s+/g, " ").split(" "),
-		ADMINID = process.env.ADMIN.split(",");
+	const SERVERQUEUE = QUEUE.get(message.guild.id);
+	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
+	const ADMINID = process.env.ADMIN.split(",");
 
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
 
