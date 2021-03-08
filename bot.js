@@ -85,7 +85,8 @@ CLIENT.on("message", async (message) => {
 		return;
 
 	const SERVERQUEUE = QUEUE.get(message.guild.id);
-	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
+	//const ARGS = message.content.replace(/\s+/g, " ").split(" ");
+	const ARGS = message.content.split(" ");
 	const ADMINID = process.env.ADMIN.split(",");
 
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
