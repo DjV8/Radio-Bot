@@ -3,8 +3,8 @@ dotenv.config();
 
 import { Client } from "discord.js";
 import ytdl from "ytdl-core";
-const CLIENT = new Client();
-const QUEUE = new Map();
+const CLIENT = new Client(),
+	QUEUE = new Map();
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
 import pkg from "winston"; // logger
@@ -81,9 +81,9 @@ CLIENT.on("message", async (message) => {
 	)
 		return;
 
-	const SERVERQUEUE = QUEUE.get(message.guild.id);
-	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
-	const ADMINID = process.env.ADMIN.split(",");
+	const SERVERQUEUE = QUEUE.get(message.guild.id),
+		ARGS = message.content.replace(/\s+/g, " ").split(" "),
+		ADMINID = process.env.ADMIN.split(",");
 
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
 
@@ -105,7 +105,10 @@ CLIENT.on("message", async (message) => {
 				return message.channel.send("No bym wbił ale nie moge 😕");
 			return execute(message, SERVERQUEUE, ARGS[2]);
 		}
-		if (ARGS[1] == "idź") return stop_radio(message, SERVERQUEUE);
+		if (ARGS[1] == "idź") {
+			message.channel.send("okok");
+			return stop_radio(SERVERQUEUE);
+		}
 		if (checkIfQueue(SERVERQUEUE, message.channel)) {
 			if (ARGS[1] == "pomiń") return skip(SERVERQUEUE);
 			if (ARGS[1] == "loop" || ARGS[1] == "kloop") return loop(message, SERVERQUEUE, ARGS[1]);
@@ -114,7 +117,6 @@ CLIENT.on("message", async (message) => {
 	} else return;
 	return message.reply("nie wie jak korzystać z bota");
 });
-// ajajaj
 async function execute(message, queue, url) {
 	const MEDIAINFO = {
 		url: null,
@@ -122,7 +124,7 @@ async function execute(message, queue, url) {
 		yt: false,
 	};
 
-	if (url.includes("youtu")) {
+	if (url.includes("youtu.be") || url.includes("youtube.com")) {
 		try {
 			const ytinfo = await ytdl.getInfo(url);
 			MEDIAINFO.url = url;
@@ -248,36 +250,26 @@ function findStation(searchWord) {
 	}
 	return -1;
 }
-function stop_radio(message, queue) {
-	message.channel.send("okok");
+function stop_radio(queue) {
 	queue.media = [];
 	queue.connection.dispatcher.end();
 }
 function queue(message, queue) {
-	let text = "```Kolejka: \n";
-	for (let i = 0; i < queue.media.length; i++) {
-		let song = queue.media[i].name;
-		if (i == 0) text = text.concat(`Właśnie leci: ${song}\n`);
-		else text = text.concat(`${i}. ${song}\n`);
-		if (i + 1 == queue.media.length) message.channel.send(text.concat("```"));
-	}
+	let text = "```";
+	text = text.concat(`Kolejka:\nWłaśnie leci:${queue.media[0].name}\n`);
+	for (let i = 1; i < queue.media.length; i++)
+		text = text.concat(`${i}. ${queue.media[i].name}\n`);
+	message.channel.send(text.concat("```"));
 }
 
-/*function stop_radio_silent(queue) { do ogarnięcia
-	queue.media = [];
-	queue.connection.dispatcher.end();
-}
 CLIENT.on("voiceStateUpdate", (oldMember) => {
-	const queue = QUEUE.get(oldMember.guild.id)
-	if (!queue) return
-	if (queue.voiceChannel.members.size === 1) {
-		stop_radio_silent(queue);
-	}
-})*/
+	const SERVERQUEUE = QUEUE.get(oldMember.guild.id);
+	if (SERVERQUEUE.voiceChannel.members.size === 1) stop_radio(SERVERQUEUE);
+});
 
 function list_stations(channel) {
-	let i = 0;
-	let msg = "```Dostępne stacje:";
+	let i = 0,
+		msg = "```Dostępne stacje:";
 	while (radiostation.stations[i]) {
 		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
 		i++;
@@ -290,8 +282,6 @@ function refresh(channel) {
 	channel.send("Odświeżam");
 }
 
-CLIENT.on("error", (error) => {
-	logger.error(error);
-});
+CLIENT.on("error", (error) => logger.error(error));
 
 CLIENT.login(process.env.BOT_TOKEN);
