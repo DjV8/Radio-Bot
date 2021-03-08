@@ -10,7 +10,7 @@ import { createInterface } from "readline";
 import pkg from "winston"; // logger
 const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = pkg;
 
-var radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
+let radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 
 const CONSOLE = createInterface({
 	input: process.stdin,
@@ -86,76 +86,65 @@ CLIENT.on("message", async (message) => {
 	const ADMINID = process.env.ADMIN.split(",");
 
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
-	switch (ARGS[1]) {
-		case "odśwież":
-			for (let i = 0; i < ADMINID.length; i++)
-				if (message.author.id === ADMINID[i]) refresh(message.channel);
-			break;
-		case "odpal":
-			execute(message, SERVERQUEUE, ARGS[2]);
-			break;
-		case "idź":
-			stop_radio(message, SERVERQUEUE);
-			break;
-		case "stacje":
-			list_stations(message);
-			break;
-		case "pomocy":
-			message.channel.send(
-				"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
-			);
-			break;
-		case "pomiń":
-			skip(message, SERVERQUEUE);
-			break;
-		case "loop":
-		case "kloop":
-			loop(message, SERVERQUEUE, ARGS[1]);
-			break;
-		default:
-			message.reply("nie wie jak korzystać z bota");
-			break;
-	}
+
+	if (ARGS[1] == "odśwież")
+		for (let i = 0; i < ADMINID.length; i++)
+			if (message.author.id === ADMINID[i]) return refresh(message.channel);
+	if (ARGS[1] == "stacje") return list_stations(message.channel);
+	if (ARGS[1] == "pomocy")
+		return message.channel.send(
+			"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radip queue - pokazuję aktualną kolejke \n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
+		);
+	if (
+		checkIfOnChannel(message.member.voice.channel, message.channel) &&
+		checkIfOnSameVC(message.member.voice.channel, message.channel, SERVERQUEUE)
+	) {
+		if (ARGS[1] == "odpal") {
+			const PERMISSIONS = message.member.voice.channel.permissionsFor(CLIENT.user);
+			if (!PERMISSIONS.has("CONNECT") || !PERMISSIONS.has("SPEAK"))
+				return message.channel.send("No bym wbił ale nie moge 😕");
+			return execute(message, SERVERQUEUE, ARGS[2]);
+		}
+		if (ARGS[1] == "idź") return stop_radio(message, SERVERQUEUE);
+		if (checkIfQueue(SERVERQUEUE, message.channel)) {
+			if (ARGS[1] == "pomiń") return skip(SERVERQUEUE);
+			if (ARGS[1] == "loop" || ARGS[1] == "kloop") return loop(message, SERVERQUEUE, ARGS[1]);
+			if (ARGS[1] == "queue") return queue(message, SERVERQUEUE);
+		} else return;
+	} else return;
+	return message.reply("nie wie jak korzystać z bota");
 });
-
+// ajajaj
 async function execute(message, queue, url) {
-	var voiceChannel = message.member.voice.channel;
-	var textChannel = message.channel;
-	if (!checkIfOnChannel(voiceChannel, textChannel)) return;
-	const permissions = voiceChannel.permissionsFor(CLIENT.user);
-	if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
-		return textChannel.send("No bym wbił ale nie moge 😕");
-	if (!checkIfOnSameVC(voiceChannel, textChannel, queue)) return;
-
-	let mediaInfo;
+	const MEDIAINFO = {
+		url: null,
+		name: null,
+		yt: false,
+	};
 
 	if (url.includes("youtu")) {
 		try {
 			const ytinfo = await ytdl.getInfo(url);
-			mediaInfo = {
-				url: url,
-				name: ytinfo.videoDetails.title,
-				yt: true,
-			};
+			MEDIAINFO.url = url;
+			MEDIAINFO.name = ytinfo.videoDetails.title;
+			MEDIAINFO.yt = true;
 		} catch (err) {
 			logger.info(err);
-			return textChannel.send("Nie ma takiego filmu");
+			return message.channel.send("Nie ma takiego filmu");
 		}
 	} else {
-		const stationNr = findStation(url);
-		if (stationNr == -1) return textChannel.send("O ch*j ci chodzi?");
-		const STATIONINFO = radiostation.stations[stationNr];
-		mediaInfo = {
-			url: STATIONINFO.url,
-			name: STATIONINFO.desc,
-			yt: false,
-		};
+		const STATIONNR = findStation(url);
+		if (STATIONNR == -1) return message.channel.send("O ch*j ci chodzi?");
+		const STATIONINFO = radiostation.stations[STATIONNR];
+		MEDIAINFO.url = STATIONINFO.url;
+		MEDIAINFO.name = STATIONINFO.desc;
+		MEDIAINFO.yt = false;
 	}
 
 	if (!queue) {
 		const MEDIACONSTRUCT = {
-			textChannel: textChannel,
-			voiceChannel: voiceChannel,
+			textChannel: message.channel,
+			voiceChannel: message.member.voice.channel,
 			connection: null,
 			media: [],
 			volume: 5,
@@ -164,16 +153,16 @@ async function execute(message, queue, url) {
 			kloop: false,
 		};
 		QUEUE.set(message.guild.id, MEDIACONSTRUCT);
-		MEDIACONSTRUCT.media.push(mediaInfo);
+		MEDIACONSTRUCT.media.push(MEDIAINFO);
 
 		try {
-			var connection = await voiceChannel.join();
-			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
+			let connection = await message.member.voice.channel.join();
+			logger.info(`Polaczono z kanalem ${message.member.voice.channel.name}!`);
 			MEDIACONSTRUCT.connection = connection;
 			play(message.guild);
 			connection.on("disconnect", () => {
 				QUEUE.delete(message.guild.id);
-				logger.info(`Rozlaczono z kanalem ${voiceChannel.name}!`);
+				logger.info(`Rozlaczono z kanalem ${message.member.voice.channel.name}!`);
 			});
 		} catch (err) {
 			logger.error(err);
@@ -181,11 +170,10 @@ async function execute(message, queue, url) {
 			return;
 		}
 	} else {
-		queue.media.push(mediaInfo);
-		textChannel.send(`${mediaInfo.name} dodano do kolejki!`);
+		queue.media.push(MEDIAINFO);
+		message.channel.send(`${MEDIAINFO.name} dodano do kolejki!`);
 	}
 }
-
 function checkIfOnChannel(voiceChannel, textChannel) {
 	if (!voiceChannel) {
 		textChannel.send("Najpierw wbij gdzieś!");
@@ -207,33 +195,14 @@ function checkIfOnSameVC(voiceChannel, textChannel, queue) {
 	}
 	return true;
 }
-function checkOnOrderCHange(voiceChannel, textChannel, queue) {
-	if (
-		!checkIfOnChannel(voiceChannel, textChannel) ||
-		!checkIfQueue(queue, textChannel) ||
-		!checkIfOnSameVC(voiceChannel, textChannel, queue)
-	)
-		return false;
-	return true;
-}
-
-function skip(message, queue) {
-	var voiceChannel = message.member.voice.channel;
-	var textChannel = message.channel;
-	if (!checkOnOrderCHange(voiceChannel, textChannel, queue)) return;
+function skip(queue) {
 	if (queue.loop) queue.media.shift();
 	queue.connection.dispatcher.end();
 }
-
 function play(guild) {
 	const SERVERQUEUE = QUEUE.get(guild.id);
-
-	if (!SERVERQUEUE.media[0]) {
-		SERVERQUEUE.voiceChannel.leave();
-		return;
-	}
-
-	var dispatcher;
+	if (!SERVERQUEUE.media[0]) return SERVERQUEUE.voiceChannel.leave();
+	let dispatcher;
 	if (SERVERQUEUE.media[0].yt) {
 		dispatcher = SERVERQUEUE.connection.play(
 			ytdl(SERVERQUEUE.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
@@ -252,24 +221,23 @@ function play(guild) {
 		});
 
 	dispatcher.setVolumeLogarithmic(SERVERQUEUE.volume / 5);
-	if (SERVERQUEUE.lastName != SERVERQUEUE.media[0].name)
+	if (SERVERQUEUE.lastName != SERVERQUEUE.media[0].name) {
 		SERVERQUEUE.textChannel.send(`Właśnie leci: **${SERVERQUEUE.media[0].name}**`);
-	SERVERQUEUE.lastName = SERVERQUEUE.media[0].name;
+		SERVERQUEUE.lastName = SERVERQUEUE.media[0].name;
+	}
 }
-
 function loop(message, queue, loopMode) {
-	if (!checkOnOrderCHange(message.member.voice.channel, message.channel, queue)) return;
 	let text = "Powtarzanie ";
 	if (loopMode === "loop") {
 		queue.kloop = false;
-		queue.loop = !queue.loop; // do przyszłej optymalizacji
+		queue.loop = !queue.loop;
 	} else {
 		queue.loop = false;
-		queue.kloop = !queue.kloop; // do przyszłej optymalizacji
+		queue.kloop = !queue.kloop;
 		text = text.concat("kolejki ");
 	}
-	if (queue.loop == queue.kloop) return message.channel.send((text = text.concat("wyłączone")));
-	else return message.channel.send((text = text.concat("włączone")));
+	if (queue.loop == queue.kloop) message.channel.send(text.concat("wyłączone"));
+	else message.channel.send(text.concat("włączone"));
 }
 
 function findStation(searchWord) {
@@ -280,15 +248,22 @@ function findStation(searchWord) {
 	}
 	return -1;
 }
-
 function stop_radio(message, queue) {
-	if (!checkOnOrderCHange(message.member.voice.channel, message.channel, queue)) return;
 	message.channel.send("okok");
 	queue.media = [];
 	queue.connection.dispatcher.end();
 }
+function queue(message, queue) {
+	let text = "```Kolejka: \n";
+	for (let i = 0; i < queue.media.length; i++) {
+		let song = queue.media[i].name;
+		if (i == 0) text = text.concat(`Właśnie leci: ${song}\n`);
+		else text = text.concat(`${i}. ${song}\n`);
+		if (i + 1 == queue.media.length) message.channel.send(text.concat("```"));
+	}
+}
 
-/*function stop_radio_silent(queue) {
+/*function stop_radio_silent(queue) { do ogarnięcia
 	queue.media = [];
 	queue.connection.dispatcher.end();
 }
@@ -300,14 +275,14 @@ CLIENT.on("voiceStateUpdate", (oldMember) => {
 	}
 })*/
 
-function list_stations(message) {
+function list_stations(channel) {
 	let i = 0;
 	let msg = "```Dostępne stacje:";
 	while (radiostation.stations[i]) {
 		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
 		i++;
 	}
-	message.channel.send(msg.concat("````"));
+	channel.send(msg.concat("````"));
 }
 
 function refresh(channel) {
