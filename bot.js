@@ -1,58 +1,16 @@
 import dotenv from "dotenv";
 dotenv.config();
-
 import { Client } from "discord.js";
 import ytdl from "ytdl-core";
-const client = new Client();
-const queue = new Map();
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
 import pkg from "winston"; // logger
 const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = pkg; // wczytanie stacji
-
-client.on("ready", () => {
-	let botStatus = {
-		id: 0,
-		list: [
-			"Zawołaj pomocy jak potrzebujesz 😉",
-			`Jesem na ${client.guilds.cache.size} serwerach!`,
-			"Ram pam pam",
-			"🎶🎶🎶",
-		],
-	};
-
-	setInterval(
-		async () => (botStatus.list[1] = `Jesem na ${client.guilds.cache.size} serwerach!`),
-		864e5
-	); //co 24h
-
-	setInterval(async () => {
-		client.user.setPresence({
-			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
-			activity: {
-				name: botStatus.list[botStatus.id],
-				type: "PLAYING",
-			},
-			status: "online",
-		});
-		botStatus.id++;
-		if (botStatus.id == botStatus.list.length) botStatus.id = 0;
-	}, 6e5); // co 10 min
-
-	logger.info("Zalogowano jako " + client.user.tag + "!");
-	logger.info("Link z zaproszeniem: " + process.env.BOT_INVITE);
-	rl.question("Wcisnij enter aby zakonczyc\n", () => {
-		client.destroy();
-		process.exit();
-	});
-});
-
-let radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
-
+const client = new Client();
+const queue = new Map();
 const LOGFORMAT = _FORMAT.printf(({ level, timestamp, message }) => {
 	return `${level}:${timestamp}: ${message}`;
 });
-
 const logger = createLogger({
 	level: "info",
 	format: _FORMAT.combine(_FORMAT.timestamp(), LOGFORMAT),
@@ -63,79 +21,12 @@ const logger = createLogger({
 	],
 	exceptionHandlers: [new _TRANSPORTS.File({ filename: "exceptions.log" })],
 });
-
 const rl = createInterface({
 	// interfejs konsoli
 	input: process.stdin,
 	output: process.stdout,
 });
-
-client.on("message", async (message) => {
-	if (message.author.bot) return;
-
-	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
-		return message.author.send("Mordo nie mogę pisać").catch((err) => logger.error(err));
-
-	if (message.content.toLowerCase().includes("twoja stara"))
-		return message.channel.send("zapierdala");
-
-	if (
-		!message.content.startsWith("<@" + client.user + ">") &&
-		!message.content.startsWith("<@!" + client.user + ">")
-	)
-		return;
-
-	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
-	const SERVERQUEUE = queue.get(message.guild.id);
-	if (!ARGS[1]) return message.channel.send("czego kurwa");
-
-	switch (ARGS[1]) {
-		case "odpal":
-			if (checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE))
-				execute(message, SERVERQUEUE, ARGS[2]);
-			break;
-		case "idź":
-			if (checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE)) {
-				message.channel.send("okok");
-				stop_radio(SERVERQUEUE);
-			}
-			break;
-		case "stacje":
-			list_stations(message.channel);
-			break;
-		case "odśwież":
-			const ADMINID = process.env.ADMIN.split(",");
-			for (let i = 0; i < ADMINID.length; i++)
-				if (message.author.id === ADMINID[i]) refresh(message.channel);
-			break;
-		case "pomocy":
-			message.channel.send(
-				"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radip queue - pokazuję aktualną kolejke \n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
-			);
-			break;
-		case "pomiń":
-			if (
-				checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE) &&
-				checkIfQueue(SERVERQUEUE, message.channel)
-			)
-				skip(SERVERQUEUE);
-			break;
-		case "loop":
-		case "kloop":
-			if (
-				checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE) &&
-				checkIfQueue(SERVERQUEUE, message.channel)
-			)
-				loop(message, SERVERQUEUE, ARGS[1]);
-			break;
-		case "queue":
-			if (checkIfQueue(SERVERQUEUE, message.channel)) queueList(message, SERVERQUEUE);
-			break;
-		default:
-			message.reply("nie wie jak korzystać z bota");
-			break;
-	}
-});
+let radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
 function checkIfQueue(queue, textChannel) {
 	if (!queue) {
 		textChannel.send("Brak kolejki!");
@@ -154,47 +45,30 @@ function checkIfOnVC(voiceChannel, textChannel, queue) {
 	}
 	return true;
 }
-
 async function execute(message, serverQueue, link) {
-	const voiceChannel = message.member.voice.channel;
-
-	if (!voiceChannel) return message.channel.send("Najpierw wbij gdzieś!");
-	const permissions = voiceChannel.permissionsFor(message.client.user);
-	if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
-		return message.channel.send("No bym wbił ale nie moge 😕");
-	if (serverQueue) {
-		if (serverQueue.voiceChannel != voiceChannel) {
-			return message.channel.send("Przecież ciebie nawet tu nie ma");
+	class getInfo {
+		constructor(url, title, status) {
+			this.url = url;
+			this.name = title;
+			this.yt = status;
 		}
 	}
-	const mediaInfo = {
-		url: null,
-		name: null,
-		yt: null,
-	};
-
+	const voiceChannel = message.member.voice.channel;
+	let mediaInfo;
 	if (link.includes("youtube.com") || link.includes("youtu.be")) {
-		//sprawdz czy youtube
 		try {
 			const ytinfo = await ytdl.getInfo(link);
-			mediaInfo.url = link;
-			mediaInfo.name = ytinfo.videoDetails.title;
-			mediaInfo.yt = true;
+			mediaInfo = new getInfo(link, ytinfo.videoDetails.title, true);
 		} catch (err) {
 			logger.info(err);
 			return message.channel.send("Nie ma takiego filmu");
 		}
 	} else {
 		const stationNr = findStation(link);
-		if (stationNr == -1) {
-			return message.channel.send("O ch*j ci chodzi?");
-		}
+		if (stationNr == -1) return message.channel.send("O ch*j ci chodzi?");
 		const stationInfo = radiostation.stations[stationNr];
-		mediaInfo.url = stationInfo.url;
-		mediaInfo.name = stationInfo.desc;
-		mediaInfo.yt = false;
+		mediaInfo = new getInfo(stationInfo.url, stationInfo.desc, false);
 	}
-
 	if (!serverQueue) {
 		const mediaConstruct = {
 			textChannel: message.channel,
@@ -208,7 +82,6 @@ async function execute(message, serverQueue, link) {
 		};
 		queue.set(message.guild.id, mediaConstruct);
 		mediaConstruct.media.push(mediaInfo);
-
 		try {
 			var connection = await voiceChannel.join();
 			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
@@ -228,12 +101,36 @@ async function execute(message, serverQueue, link) {
 		message.channel.send(`${mediaInfo.name} dodano do kolejki!`);
 	}
 }
-
-function skip(queue) {
-	if (queue.loop) queue.media.shift();
-	queue.connection.dispatcher.end();
+function findStation(searchWord) {
+	var i = 0;
+	while (radiostation.stations[i]) {
+		if (radiostation.stations[i].shortname === searchWord) return i;
+		i++;
+	}
+	return -1;
 }
-
+function list_stations(channel) {
+	let i = 0,
+		msg = "```Dostępne stacje:";
+	while (radiostation.stations[i]) {
+		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
+		i++;
+	}
+	channel.send(msg.concat("````"));
+}
+function loop(channel, loop, kloop, loopMode) {
+	let text = "Powtarzanie ";
+	if (loopMode === "loop") {
+		kloop = false;
+		loop = !loop;
+	} else {
+		loop = false;
+		kloop = !kloop;
+		text = text.concat("kolejki ");
+	}
+	if (loop == kloop) channel.send(text.concat("wyłączone"));
+	else channel.send(text.concat("włączone"));
+}
 function play(guild) {
 	const serverQueue = queue.get(guild.id);
 
@@ -268,59 +165,125 @@ function play(guild) {
 	}
 	serverQueue.lastName = serverQueue.media[0].name;
 }
-
-function loop(message, queue, loopMode) {
-	let text = "Powtarzanie ";
-	if (loopMode === "loop") {
-		queue.kloop = false;
-		queue.loop = !queue.loop;
-	} else {
-		queue.loop = false;
-		queue.kloop = !queue.kloop;
-		text = text.concat("kolejki ");
-	}
-	if (queue.loop == queue.kloop) message.channel.send(text.concat("wyłączone"));
-	else message.channel.send(text.concat("włączone"));
+function queueList(channel, queue) {
+	let text = "```";
+	text = text.concat(`Kolejka:\nWłaśnie leci:${queue[0].name}\n`);
+	for (let i = 1; i < queue.length; i++) text = text.concat(i + " " + queue[i].name + "\n");
+	channel.send(text.concat("```"));
 }
-
-function findStation(searchWord) {
-	var i = 0;
-	while (radiostation.stations[i]) {
-		if (radiostation.stations[i].shortname === searchWord) return i;
-		i++;
-	}
-	return -1;
-}
-
-function stop_radio(queue) {
-	queue.media = [];
-	queue.connection.dispatcher.end();
-}
-
-function list_stations(channel) {
-	let i = 0,
-		msg = "```Dostępne stacje:";
-	while (radiostation.stations[i]) {
-		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
-		i++;
-	}
-	channel.send(msg.concat("````"));
-}
-
 function refresh(channel) {
 	radiostation = JSON.parse(readFileSync("stations.json"));
 	channel.send("Odświeżam");
 }
-function queueList(message, queue) {
-	let text = "```";
-	text = text.concat(`Kolejka:\nWłaśnie leci:${queue.media[0].name}\n`);
-	for (let i = 1; i < queue.media.length; i++)
-		text = text.concat(i + " " + queue.media[i].name + "\n");
-	message.channel.send(text.concat("```"));
+function skip(queue) {
+	if (queue.loop) queue.media.shift();
+	queue.connection.dispatcher.end();
 }
+function stop_radio(queue) {
+	queue.media = [];
+	queue.connection.dispatcher.end();
+}
+client.on("ready", () => {
+	let id = 0,
+		list = [
+			"Zawołaj pomocy jak potrzebujesz 😉",
+			`Jesem na ${client.guilds.cache.size} serwerach!`,
+			"Ram pam pam",
+			"🎶🎶🎶",
+		];
 
+	setInterval(async () => (list[1] = `Jesem na ${client.guilds.cache.size} serwerach!`), 864e5); //co 24h
+
+	setInterval(async () => {
+		client.user.setPresence({
+			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
+			activity: {
+				name: list[id],
+				type: "PLAYING",
+			},
+			status: "online",
+		});
+		id++;
+		if (id == list.length) id = 0;
+	}, 6e5); // co 10 min
+
+	logger.info(`Zalogowano jako ${client.user.tag}!`);
+	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
+	rl.question("Wcisnij enter aby zakonczyc\n", () => {
+		client.destroy();
+		process.exit();
+	});
+});
+client.on("message", async (message) => {
+	if (message.author.bot) return;
+	if (
+		!message.content.startsWith("<@" + client.user + ">") &&
+		!message.content.startsWith("<@!" + client.user + ">")
+	)
+		return;
+	if (!message.channel.permissionsFor(message.client.user).has("SEND_MESSAGES"))
+		return message.author.send(`Mordo nie mogę pisać`).catch((err) => logger.error(err));
+	//if (message.content.toLowerCase().includes("twoja stara"))
+	//return message.channel.send("zapierdala");
+	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
+	if (!ARGS[1]) return message.channel.send("czego kurwa");
+	const SERVERQUEUE = queue.get(message.guild.id);
+	switch (ARGS[1]) {
+		case "odpal":
+			if (checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE)) {
+				const permissions = message.member.voice.channel.permissionsFor(
+					message.client.user
+				);
+				if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
+					return message.channel.send("No bym wbił ale nie moge 😕");
+				execute(message, SERVERQUEUE, ARGS[2]);
+			}
+			break;
+		case "idź":
+			if (checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE)) {
+				message.channel.send("okok");
+				stop_radio(SERVERQUEUE);
+			}
+			break;
+		case "stacje":
+			list_stations(message.channel);
+			break;
+		case "odśwież":
+			const ADMINID = process.env.ADMIN.split(",");
+			ADMINID.forEach((ADMINID) => {
+				if (message.author.id === ADMINID) refresh(message.channel);
+			});
+			break;
+		case "pomocy":
+			message.channel.send(
+				"```Dostępne polecenia:\n@Radio odpal < nazwa stacji > / <link z yt> - dołącza do kanału i odtwarza wybrane radio/film z linka\n@Radip queue - pokazuję aktualną kolejke \n@Radio idź - przestaje grać i wychodzi z kanału\n@Radio stacje - wyświetla dostępne stacje\n@Radio loop - zapętlanie utworów\n@Radio kloop - zapętla całą kolejkę \n@Radio pomiń - pomija element z kolejki```"
+			);
+			break;
+		case "pomiń":
+			if (
+				checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE) &&
+				checkIfQueue(SERVERQUEUE, message.channel)
+			)
+				skip(SERVERQUEUE);
+			break;
+		case "loop":
+		case "kloop":
+			if (
+				checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE) &&
+				checkIfQueue(SERVERQUEUE, message.channel)
+			)
+				loop(message.channel, SERVERQUEUE.loop, SERVERQUEUE.kloop, ARGS[1]);
+			break;
+		case "queue":
+			if (checkIfQueue(SERVERQUEUE, message.channel))
+				queueList(message.channel, SERVERQUEUE.media);
+			break;
+		default:
+			message.reply("nie wie jak korzystać z bota");
+			break;
+	}
+});
 client.on("error", (error) => {
 	logger.error(error);
 });
-
 client.login(process.env.BOT_TOKEN);
