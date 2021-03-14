@@ -1,10 +1,10 @@
 import dotenv from "dotenv";
-dotenv.config();
 import { Client } from "discord.js";
 import ytdl from "ytdl-core";
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
 import pkg from "winston"; // logger
+dotenv.config();
 const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = pkg; // wczytanie stacji
 const client = new Client();
 const queue = new Map();
@@ -21,15 +21,15 @@ const logger = createLogger({
 	],
 	exceptionHandlers: [new _TRANSPORTS.File({ filename: "exceptions.log" })],
 });
-const rl = createInterface({
+const CONSOLE = createInterface({
 	// interfejs konsoli
 	input: process.stdin,
 	output: process.stdout,
 });
-let radiostation = JSON.parse(readFileSync("stations.json", "utf8")); // wczytanie stacji
+let radiostation = JSON.parse(readFileSync("stations.json")); // wczytanie stacji
 function checkIfQueue(queue, textChannel) {
 	if (!queue) {
-		textChannel.send("Brak kolejki!");
+		textChannel.send(`Brak kolejki!`);
 		return false;
 	}
 	return true;
@@ -61,12 +61,11 @@ async function execute(message, serverQueue, link) {
 			mediaInfo = new getInfo(link, ytinfo.videoDetails.title, true);
 		} catch (err) {
 			logger.info(err);
-			return message.channel.send("Nie ma takiego filmu");
+			return message.channel.send(`Nie ma takiego filmu`);
 		}
 	} else {
-		const stationNr = findStation(link);
-		if (stationNr == -1) return message.channel.send("O ch*j ci chodzi?");
-		const stationInfo = radiostation.stations[stationNr];
+		const stationInfo = findStation(link);
+		if (!stationInfo) return message.channel.send("Nie wiem co masz na myśli");
 		mediaInfo = new getInfo(stationInfo.url, stationInfo.desc, false);
 	}
 	if (!serverQueue) {
@@ -102,34 +101,29 @@ async function execute(message, serverQueue, link) {
 	}
 }
 function findStation(searchWord) {
-	var i = 0;
-	while (radiostation.stations[i]) {
-		if (radiostation.stations[i].shortname === searchWord) return i;
-		i++;
-	}
-	return -1;
+	let placeholder = null;
+	radiostation.stations.forEach((station) => {
+		if (station.shortname === searchWord) placeholder = station;
+	});
+	return placeholder;
 }
 function list_stations(channel) {
-	let i = 0,
-		msg = "```Dostępne stacje:";
-	while (radiostation.stations[i]) {
-		msg.concat(`\n${radiostation.stations[i].shortname} - ${radiostation.stations[i].desc}`);
-		i++;
-	}
-	channel.send(msg.concat("````"));
+	let msg = "```Dostępne stacje:\n";
+	radiostation.stations.forEach((station) => {
+		msg += `${station.shortname} - ${station.desc}\n`;
+	});
+	channel.send((msg += "```"));
 }
-function loop(channel, loop, kloop, loopMode) {
-	let text = "Powtarzanie ";
-	if (loopMode === "loop") {
-		kloop = false;
-		loop = !loop;
-	} else {
-		loop = false;
-		kloop = !kloop;
-		text = text.concat("kolejki ");
+function loop(channel, queue, loopMode) {
+	let text = `Powtarzanie `;
+	if (loopMode === "loop") queue.kloop = false;
+	else {
+		queue.loop = false;
+		text += `kolejki `;
 	}
-	if (loop == kloop) channel.send(text.concat("wyłączone"));
-	else channel.send(text.concat("włączone"));
+	queue[loopMode] = !queue[loopMode];
+	if (queue.loop === queue.kloop) channel.send((text += `wyłączone`));
+	else channel.send((text += `włączone`));
 }
 function play(guild) {
 	const serverQueue = queue.get(guild.id);
@@ -166,10 +160,9 @@ function play(guild) {
 	serverQueue.lastName = serverQueue.media[0].name;
 }
 function queueList(channel, queue) {
-	let text = "```";
-	text = text.concat(`Kolejka:\nWłaśnie leci:${queue[0].name}\n`);
-	for (let i = 1; i < queue.length; i++) text = text.concat(i + " " + queue[i].name + "\n");
-	channel.send(text.concat("```"));
+	let text = "```" + `Kolejka:\nWłaśnie leci:${queue[0].name}\n`;
+	for (let i = 1; i < queue.length; i++) text += `${i} ${queue[i].name}\n`;
+	channel.send((text += "```"));
 }
 function refresh(channel) {
 	radiostation = JSON.parse(readFileSync("stations.json"));
@@ -184,16 +177,15 @@ function stop_radio(queue) {
 	queue.connection.dispatcher.end();
 }
 client.on("ready", () => {
-	let id = 0,
-		list = [
-			"Zawołaj pomocy jak potrzebujesz 😉",
-			`Jesem na ${client.guilds.cache.size} serwerach!`,
-			"Ram pam pam",
-			"🎶🎶🎶",
-		];
+	let id = 0;
+	let list = [
+		`Zawołaj pomocy jak potrzebujesz 😉`,
+		`Jesem na ${client.guilds.cache.size} serwerach!`,
+		`Ram pam pam`,
+		`🎶🎶🎶`,
+	];
 
 	setInterval(async () => (list[1] = `Jesem na ${client.guilds.cache.size} serwerach!`), 864e5); //co 24h
-
 	setInterval(async () => {
 		client.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
@@ -209,7 +201,7 @@ client.on("ready", () => {
 
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
-	rl.question("Wcisnij enter aby zakonczyc\n", () => {
+	CONSOLE.question("Wcisnij enter aby zakonczyc\n", () => {
 		client.destroy();
 		process.exit();
 	});
@@ -272,7 +264,7 @@ client.on("message", async (message) => {
 				checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE) &&
 				checkIfQueue(SERVERQUEUE, message.channel)
 			)
-				loop(message.channel, SERVERQUEUE.loop, SERVERQUEUE.kloop, ARGS[1]);
+				loop(message.channel, SERVERQUEUE, ARGS[1]);
 			break;
 		case "queue":
 			if (checkIfQueue(SERVERQUEUE, message.channel))
