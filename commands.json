@@ -1,0 +1,32 @@
+{
+    "commands":[
+     {
+        "name": "odśwież",
+        "desc": "odświeża plik stations.json"
+    },{
+        "name": "stacje",
+        "desc": "wyświetla dostępne stacje"
+    },{
+        "name": "pomocy",
+        "desc": "wyświetla dostępne polecenia"
+    },{
+        "name": "idź",
+        "desc": "przestaje grać i wychodzi z kanału"
+    },{
+        "name": "odpal",
+        "desc": "<nazwa stacji>/<link z yt> - dołącza do kanału i odtwarza wybrane radio"
+    },{
+        "name": "queue",
+        "desc": "wyświetla obecną kolejkę"
+    },{
+        "name": "loop",
+        "desc": "zapętla obecny utwór"
+    },{
+        "name": "kloop",
+        "desc": "zapętla całą kolejkę utworów"
+    },{
+        "name": "pomiń",
+        "desc": "pomija obecny utwór"
+    }
+    ]
+}
