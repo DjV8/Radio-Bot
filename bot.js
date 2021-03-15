@@ -3,13 +3,13 @@ import { Client } from "discord.js";
 import ytdl from "ytdl-core";
 import { readFileSync } from "fs";
 import { createInterface } from "readline";
-import pkg from "winston"; // logger
+import winston from "winston";
 dotenv.config();
-const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = pkg;
+const { format: _FORMAT, createLogger, transports: _TRANSPORTS } = winston;
 const client = new Client();
 const queue = new Map();
 const LOGFORMAT = _FORMAT.printf(({ level, timestamp, message }) => {
-	return `${level}:${timestamp}: ${message}`;
+	return `${level}: ${timestamp}: ${message}`;
 });
 const logger = createLogger({
 	level: "info",
@@ -21,29 +21,6 @@ const logger = createLogger({
 	],
 	exceptionHandlers: [new _TRANSPORTS.File({ filename: "exceptions.log" })],
 });
-const CONSOLE = createInterface({
-	input: process.stdin,
-	output: process.stdout,
-});
-let radiostation;
-function checkIfQueue(queue, textChannel) {
-	if (!queue) {
-		textChannel.send(`Brak kolejki!`);
-		return false;
-	}
-	return true;
-}
-function checkIfOnVC(voiceChannel, textChannel, queue) {
-	if (!voiceChannel) {
-		textChannel.send("Najpierw wbij gdzieś!");
-		return false;
-	}
-	if (queue && queue.voiceChannel != voiceChannel) {
-		textChannel.send("Przecież ciebie nawet tu nie ma");
-		return false;
-	}
-	return true;
-}
 async function execute(message, serverQueue, link) {
 	class getInfo {
 		constructor(url, title, status) {
@@ -68,23 +45,13 @@ async function execute(message, serverQueue, link) {
 		if (!stationInfo) return channel.send("Nie wiem co masz na myśli");
 		mediaInfo = new getInfo(stationInfo.url, stationInfo.desc, false);
 	}
-	if (!serverQueue) {
-		const mediaConstruct = {
-			textChannel: channel,
-			voiceChannel: voiceChannel,
-			connection: null,
-			media: [],
-			volume: 5,
-			lastName: null,
-			loop: false,
-			kloop: false,
-		};
-		queue.set(message.guild.id, mediaConstruct);
-		mediaConstruct.media.push(mediaInfo);
+	serverQueue.media.push(mediaInfo);
+	queue.set(message.guild.id, serverQueue);
+	if (!serverQueue.connection)
 		try {
 			const connection = await voiceChannel.join();
 			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
-			mediaConstruct.connection = connection;
+			serverQueue.connection = connection;
 			play(message.guild);
 			connection.on("disconnect", () => {
 				queue.delete(message.guild.id);
@@ -94,21 +61,24 @@ async function execute(message, serverQueue, link) {
 			logger.error(err);
 			return queue.delete(message.guild.id);
 		}
-	} else {
-		serverQueue.media.push(mediaInfo);
-		channel.send(`${mediaInfo.name} dodano do kolejki!`);
-	}
+	else channel.send(`${mediaInfo.name} dodano do kolejki!`);
 }
-function loop(channel, queue, loopMode) {
-	let text = `Powtarzanie `;
+function help(commands) {
+	let msg = "```Dostępne polecenia:";
+	commands.forEach((command) => {
+		msg += `\n@Radio ${command.name} - ${command.desc}`;
+	});
+	return (msg += "```");
+}
+function loop(queue, loopMode) {
+	let msg = `Powtarzanie `;
 	if (loopMode === "loop") queue.kloop = false;
 	else {
 		queue.loop = false;
-		text += `kolejki `;
+		msg += `kolejki `;
 	}
 	queue[loopMode] = !queue[loopMode];
-	if (queue.loop === queue.kloop) channel.send((text += `wyłączone`));
-	else channel.send((text += `włączone`));
+	return (msg += queue.loop === queue.kloop ? `wyłączone` : `włączone`);
 }
 function play(guild) {
 	const serverQueue = queue.get(guild.id);
@@ -121,8 +91,8 @@ function play(guild) {
 	else dispatcher = serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
 		.on("finish", () => {
-			if (serverQueue.kloop) serverQueue.media.push(serverQueue.media[0]);
-			if (!serverQueue.loop) serverQueue.media.shift();
+			if (serverQueue.loop.kloop) serverQueue.media.push(serverQueue.media[0]);
+			if (!serverQueue.loop.loop) serverQueue.media.shift();
 			play(guild);
 		})
 		.on("error", (err) => {
@@ -136,40 +106,48 @@ function play(guild) {
 		serverQueue.lastName = serverQueue.media[0].name;
 	}
 }
-function queueList(channel, queue) {
-	let text = "```" + `Kolejka:\nWłaśnie leci: ${queue[0].name}`;
+function queueList(queue) {
+	let text = `\`\`\`Kolejka:\nWłaśnie leci: ${queue[0].name}`;
 	for (let i = 1; i < queue.length; i++) text += `\n${i} ${queue[i].name}`;
-	channel.send((text += "```"));
+	return (text += "```");
 }
 function skip(queue) {
-	if (queue.loop) queue.media.shift();
+	if (queue.loop.loop) queue.media.shift();
 	queue.connection.dispatcher.end();
 }
 function stationsFind(searchWord) {
+	const RADIOSTATIONS = stationsLoad();
 	let placeholder = null;
-	radiostation.stations.forEach((station) => {
+	RADIOSTATIONS.stations.forEach((station) => {
 		if (station.shortname === searchWord) return (placeholder = station);
 	});
 	return placeholder;
 }
-function stationsList(channel) {
+function stationsList() {
+	const RADIOSTATIONS = stationsLoad();
 	let msg = "```Dostępne stacje:";
-	radiostation.stations.forEach((station) => (msg += `\n${station.shortname} - ${station.desc}`));
-	channel.send((msg += "```"));
+	RADIOSTATIONS.stations.forEach(
+		(station) => (msg += `\n${station.shortname} - ${station.desc}`)
+	);
+	return (msg += "```");
 }
-function stationsRefresh() {
-	radiostation = JSON.parse(readFileSync("stations.json"));
+function stationsLoad() {
+	return JSON.parse(readFileSync("stations.json"));
 }
 function stop(queue) {
 	queue.media = [];
 	queue.connection.dispatcher.end();
 }
 client.on("ready", () => {
-	let list = [
-		`Zawołaj pomocy jak potrzebujesz 😉`,
+	const CONSOLE = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+	const list = [
+		"Zawołaj pomocy jak potrzebujesz 😉",
 		`Jesem na ${client.guilds.cache.size} serwerach!`,
-		`Ram pam pam`,
-		`🎶🎶🎶`,
+		"Ram pam pam",
+		"🎶🎶🎶",
 	];
 	setInterval(async () => (list[2] = `Jesem na ${client.guilds.cache.size} serwerach!`), 864e5); //24h
 	setInterval(async () => {
@@ -182,14 +160,13 @@ client.on("ready", () => {
 			status: "online",
 		});
 		list.push(list.shift());
-	}, 6e5); //10 min => 24h - 144 razy =>  144 %4 = 0 => git z odświeżaniem
+	}, 6e5); //`10 min => 24h - 144 razy =>  144 %4 = 0 => git z odświeżaniem
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
 	CONSOLE.question("Wcisnij enter aby zakonczyc\n", () => {
 		client.destroy();
 		process.exit();
 	});
-	stationsRefresh(); //wczytanie stacji
 });
 client.on("message", async (message) => {
 	if (message.author.bot) return;
@@ -198,45 +175,39 @@ client.on("message", async (message) => {
 		return message.author.send(`Mordo nie mogę pisać`).catch((err) => logger.error(err));
 	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
-	const SERVERQUEUE = queue.get(message.guild.id);
+	let SERVERQUEUE = !queue.get(message.guild.id)? {
+				textChannel: message.channel,
+				voiceChannel: message.member.voice.channel,
+				connection: null,
+				media: [],
+				volume: 5,
+				lastName: null,
+				loop: { loop: false, kloop: false },
+		  }
+		: queue.get(message.guild.id);
 	let id = -1;
-	const commands = JSON.parse(readFileSync("commands.json"));
-	commands.commands.forEach((command, i) => {
-		if (ARGS[1] === command.name) return (id = i);
+	const COMMANDS = JSON.parse(readFileSync("commands.json"));
+	COMMANDS.commands.forEach((command) => {
+		if (ARGS[1] === command.name) return (id = command.id);
 	});
 	if (id == -1) return message.reply("nie wie jak korzystać z bota");
-	else if (id < 3)
-		if (id == 0) {
-			const ADMINID = process.env.ADMIN.split(",");
-			ADMINID.forEach((ADMINID) => {
-				if (message.author.id === ADMINID) {
-					stationsRefresh();
-					message.channel.send("Odświeżam");
-				}
-			});
-		} else if (id == 1) stationsList(message.channel);
-		else {
-			commands.commands.shift();
-			let msg = "```Dostępne polecenia:";
-			commands.commands.forEach((command) => {
-				msg += `\n@Radio ${command.name} - ${command.desc}`;
-			});
-			message.channel.send((msg += "```"));
-		}
-	else if (checkIfOnVC(message.member.voice.channel, message.channel, SERVERQUEUE)) {
+	else if (id == 0) message.channel.send(stationsList());
+	else if (id == 1) message.channel.send(help(COMMANDS.commands));
+	else if (SERVERQUEUE.voiceChannel == message.member.voice.channel) {
 		if (id == 3) {
-			message.channel.send("okok");
-			stop(SERVERQUEUE);
-		} else if (id == 4) {
 			const permissions = message.member.voice.channel.permissionsFor(message.client.user);
 			if (!permissions.has("CONNECT") || !permissions.has("SPEAK"))
 				message.channel.send("No bym wbił ale nie moge 😕");
 			else execute(message, SERVERQUEUE, ARGS[2]);
-		} else if (checkIfQueue(SERVERQUEUE, message.channel))
-			if (id == 5) queueList(message.channel, SERVERQUEUE.media);
-			else if (id == 6 || id == 7) loop(message.channel, SERVERQUEUE, ARGS[1]);
+		} else if (id == 2) {
+			message.channel.send("okok");
+			stop(SERVERQUEUE);
+		} else if (SERVERQUEUE.media)
+			if (id == 4) message.channel.send(queueList(SERVERQUEUE.media));
+			else if (id == 5 || id == 6) message.channel.send(loop(SERVERQUEUE.loop, ARGS[1]));
 			else skip(SERVERQUEUE);
-	}
+		else message.channel.send(`Brak kolejki!`);
+	} else message.reply(" musisz być na kanale głosowym ze mną by to wykonać");
 });
 client.on("error", (error) => logger.error(error));
 client.login(process.env.BOT_TOKEN);

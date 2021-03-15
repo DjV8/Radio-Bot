@@ -1,30 +1,35 @@
 {
     "commands":[
      {
-        "name": "odśwież",
-        "desc": "odświeża plik stations.json"
-    },{
+         "id": 0,
         "name": "stacje",
         "desc": "wyświetla dostępne stacje"
     },{
+        "id": 1,
         "name": "pomocy",
         "desc": "wyświetla dostępne polecenia"
     },{
+        "id": 2,
         "name": "idź",
         "desc": "przestaje grać i wychodzi z kanału"
     },{
+        "id": 3,
         "name": "odpal",
         "desc": "<nazwa stacji>/<link z yt> - dołącza do kanału i odtwarza wybrane radio"
     },{
+        "id": 4,
         "name": "queue",
         "desc": "wyświetla obecną kolejkę"
     },{
+        "id": 5,
         "name": "loop",
         "desc": "zapętla obecny utwór"
     },{
+        "id": 6,
         "name": "kloop",
         "desc": "zapętla całą kolejkę utworów"
     },{
+        "id": 7,
         "name": "pomiń",
         "desc": "pomija obecny utwór"
     }
