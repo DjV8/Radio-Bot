@@ -10,9 +10,9 @@
   "scripts": {
     "start": "node bot.js"
   },
-  "author": "Jose_bladini",
+  "author": "DjV8",
   "contributors": [
-    "DjV8 (https://github.com/DjV8/)"
+    "Jose_bladini (https://github.com/kitsoni-g)"
   ],
   "type": "module",
   "dependencies": {

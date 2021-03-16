@@ -52,6 +52,7 @@ async function execute(message, serverQueue, link) {
 			const connection = await voiceChannel.join();
 			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
 			serverQueue.connection = connection;
+			//channel.send(`Kolejkę możesz zawsze sprawdzić poleceniem \'queue\'`);
 			play(message.guild);
 			connection.on("disconnect", () => {
 				queue.delete(message.guild.id);
@@ -70,29 +71,24 @@ function help(commands) {
 	});
 	return (msg += "```");
 }
-function loop(queue, loopMode) {
-	let msg = `Powtarzanie `;
-	if (loopMode === "loop") queue.kloop = false;
-	else {
-		queue.loop = false;
-		msg += `kolejki `;
-	}
-	queue[loopMode] = !queue[loopMode];
-	return (msg += queue.loop === queue.kloop ? `wyłączone` : `włączone`);
+function loopMode(queue, loopMode) {
+	let msg = `Powtarzanie`;
+	queue.loop = queue.loop == null || queue.loop != loopMode ? loopMode : null;
+	msg += loopMode == "kloop" ? " kolejki " : " ";
+	return (msg += queue.loop == null ? `wyłączone` : `włączone`);
 }
 function play(guild) {
 	const serverQueue = queue.get(guild.id);
 	if (!serverQueue.media[0]) return serverQueue.voiceChannel.leave();
-	let dispatcher;
-	if (serverQueue.media[0].yt)
-		dispatcher = serverQueue.connection.play(
-			ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
-		);
-	else dispatcher = serverQueue.connection.play(serverQueue.media[0].url);
+	let dispatcher = serverQueue.media[0].yt
+		? serverQueue.connection.play(
+				ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
+		  )
+		: serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
 		.on("finish", () => {
-			if (serverQueue.loop.kloop) serverQueue.media.push(serverQueue.media[0]);
-			if (!serverQueue.loop.loop) serverQueue.media.shift();
+			if (serverQueue.loop == "kloop") serverQueue.media.push(serverQueue.media[0]);
+			if (serverQueue.loop != "loop") serverQueue.media.shift();
 			play(guild);
 		})
 		.on("error", (err) => {
@@ -101,10 +97,6 @@ function play(guild) {
 			serverQueue.voiceChannel.leave();
 		});
 	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-	if (serverQueue.lastName != serverQueue.media[0].name) {
-		serverQueue.textChannel.send(`Właśnie leci: **${serverQueue.media[0].name}**`);
-		serverQueue.lastName = serverQueue.media[0].name;
-	}
 }
 function queueList(queue) {
 	let text = `\`\`\`Kolejka:\nWłaśnie leci: ${queue[0].name}`;
@@ -112,7 +104,7 @@ function queueList(queue) {
 	return (text += "```");
 }
 function skip(queue) {
-	if (queue.loop.loop) queue.media.shift();
+	if (queue.loop == "loop") queue.media.shift();
 	queue.connection.dispatcher.end();
 }
 function stationsFind(searchWord) {
@@ -149,7 +141,7 @@ client.on("ready", () => {
 		"Ram pam pam",
 		"🎶🎶🎶",
 	];
-	setInterval(async () => (list[2] = `Jesem na ${client.guilds.cache.size} serwerach!`), 864e5); //24h
+	setInterval(async () => (list[2] = `Jestem na ${client.guilds.cache.size} serwerach!`), 864e5); //24h
 	setInterval(async () => {
 		client.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
@@ -175,14 +167,14 @@ client.on("message", async (message) => {
 		return message.author.send(`Mordo nie mogę pisać`).catch((err) => logger.error(err));
 	const ARGS = message.content.replace(/\s+/g, " ").split(" ");
 	if (!ARGS[1]) return message.channel.send("czego kurwa");
-	let SERVERQUEUE = !queue.get(message.guild.id)? {
+	let SERVERQUEUE = !queue.get(message.guild.id)
+		? {
 				textChannel: message.channel,
 				voiceChannel: message.member.voice.channel,
 				connection: null,
 				media: [],
 				volume: 5,
-				lastName: null,
-				loop: { loop: false, kloop: false },
+				loop: null,
 		  }
 		: queue.get(message.guild.id);
 	let id = -1;
@@ -204,7 +196,7 @@ client.on("message", async (message) => {
 			stop(SERVERQUEUE);
 		} else if (SERVERQUEUE.media)
 			if (id == 4) message.channel.send(queueList(SERVERQUEUE.media));
-			else if (id == 5 || id == 6) message.channel.send(loop(SERVERQUEUE.loop, ARGS[1]));
+			else if (id == 5 || id == 6) message.channel.send(loopMode(SERVERQUEUE, ARGS[1]));
 			else skip(SERVERQUEUE);
 		else message.channel.send(`Brak kolejki!`);
 	} else message.reply(" musisz być na kanale głosowym ze mną by to wykonać");
