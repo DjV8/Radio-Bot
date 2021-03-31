@@ -26,7 +26,7 @@ async function execute(message, serverQueue, link) {
 		constructor(url, title, status) {
 			this.url = url;
 			this.name = title;
-			this.yt = status;
+			this.type = status;
 		}
 	}
 	const voiceChannel = message.member.voice.channel;
@@ -35,15 +35,16 @@ async function execute(message, serverQueue, link) {
 	if (link.includes("youtube.com") || link.includes("youtu.be"))
 		try {
 			const ytinfo = await ytdl.getInfo(link);
-			mediaInfo = new getInfo(link, ytinfo.videoDetails.title, true);
+			mediaInfo = new getInfo(link, ytinfo.videoDetails.title, `yt`);
 		} catch (err) {
 			logger.info(err);
 			return channel.send(`Nie ma takiego filmu`);
 		}
+	else if (link.includes(".mp3")) mediaInfo = new getInfo(`./Music/${link}`, link, `mp3`);
 	else {
 		const stationInfo = stationsFind(link);
 		if (!stationInfo) return channel.send("Nie wiem co masz na myśli");
-		mediaInfo = new getInfo(stationInfo.url, stationInfo.desc, false);
+		mediaInfo = new getInfo(stationInfo.url, stationInfo.desc, `radio`);
 	}
 	serverQueue.media.push(mediaInfo);
 	queue.set(message.guild.id, serverQueue);
@@ -52,7 +53,7 @@ async function execute(message, serverQueue, link) {
 			const connection = await voiceChannel.join();
 			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
 			serverQueue.connection = connection;
-			//channel.send(`Kolejkę możesz zawsze sprawdzić poleceniem \'queue\'`);
+			channel.send(`Kolejkę możesz zawsze sprawdzić poleceniem \'queue\'`);
 			play(message.guild);
 			connection.on("disconnect", () => {
 				queue.delete(message.guild.id);
@@ -72,19 +73,20 @@ function help(commands) {
 	return (msg += "```");
 }
 function loopMode(queue, loopMode) {
-	let msg = `Powtarzanie`;
+	let msg = "Powtarzanie";
 	queue.loop = queue.loop == null || queue.loop != loopMode ? loopMode : null;
 	msg += loopMode == "kloop" ? " kolejki " : " ";
-	return (msg += queue.loop == null ? `wyłączone` : `włączone`);
+	return (msg += queue.loop == null ? `wyłączone` : "włączone");
 }
 function play(guild) {
 	const serverQueue = queue.get(guild.id);
 	if (!serverQueue.media[0]) return serverQueue.voiceChannel.leave();
-	let dispatcher = serverQueue.media[0].yt
-		? serverQueue.connection.play(
-				ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
-		  )
-		: serverQueue.connection.play(serverQueue.media[0].url);
+	let dispatcher =
+		serverQueue.media[0].type == `yt`
+			? serverQueue.connection.play(
+					ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
+			  )
+			: serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
 		.on("finish", () => {
 			if (serverQueue.loop == "kloop") serverQueue.media.push(serverQueue.media[0]);
