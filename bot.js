@@ -84,7 +84,7 @@ function play(guild) {
 	let dispatcher =
 		serverQueue.media[0].type == `yt`
 			? serverQueue.connection.play(
-					ytdl(serverQueue.media[0].url, { filter: "audioonly", highWaterMark: 1 << 25 })
+				ytdl(serverQueue.media[0].url, { quality: "highestaudio" })
 			  )
 			: serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
