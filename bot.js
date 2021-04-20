@@ -84,7 +84,7 @@ function play(guild) {
 	let dispatcher =
 		serverQueue.media[0].type == `yt`
 			? serverQueue.connection.play(
-				ytdl(serverQueue.media[0].url, { quality: "highestaudio" })
+					ytdl(serverQueue.media[0].url, { quality: "highestaudio" })
 			  )
 			: serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
@@ -137,24 +137,27 @@ client.on("ready", () => {
 		input: process.stdin,
 		output: process.stdout,
 	});
-	const list = [
-		"Zawołaj pomocy jak potrzebujesz 😉",
-		`Jesem na ${client.guilds.cache.size} serwerach!`,
-		"Ram pam pam",
-		"🎶🎶🎶",
-	];
-	setInterval(async () => (list[2] = `Jestem na ${client.guilds.cache.size} serwerach!`), 864e5); //24h
+	const list = JSON.parse(readFileSync("status.json"));
+	list.bot_status.push(`Jesem na ${client.guilds.cache.size} serwerach!`);
+	let i = 0;
+	setInterval(async () => {
+		list.bot_status.pop();
+		list.bot_status.push(`Jestem na ${client.guilds.cache.size} serwerach!`);
+	}, 864e5); //`24h
 	setInterval(async () => {
 		client.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
 			activity: {
-				name: list[0],
+				name: list.bot_status[i],
 				type: "PLAYING",
 			},
 			status: "online",
 		});
-		list.push(list.shift());
-	}, 6e5); //`10 min => 24h - 144 razy =>  144 %4 = 0 => git z odświeżaniem
+		console.log(list.bot_status[i]);
+		i++;
+
+		if (i == list.bot_status.length) i = 0;
+	}, 6e5); // `10 min
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
 	CONSOLE.question("Wcisnij enter aby zakonczyc\n", () => {
