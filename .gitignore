@@ -6,5 +6,5 @@ bin
 .jshintrc
 .eslintrc.js
 Music
-.vs
-Radio-Bot*
+.vs/
+Radio-Bot.*
