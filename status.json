@@ -1,7 +1,3 @@
 {
-    "bot_status":[
-        "Zawołaj pomocy jak potrzebujesz 😉",
-        "Ram pam pam",
-        "🎶🎶🎶"
-    ]
+	"botStatus": ["Zawołaj pomocy jak potrzebujesz 😉", "Ram pam pam", "🎶🎶🎶"]
 }

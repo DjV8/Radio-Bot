@@ -74,23 +74,28 @@ client.on('ready', () => {
 		input: process.stdin,
 		output: process.stdout,
 	});
-	const { bot_status } = JSON.parse(readFileSync('status.json'));
-	bot_status.push(`Jesem na ${client.guilds.cache.size} serwerach!`);
+	const { bot_status: botStatus } = JSON.parse(readFileSync('status.json'));
+	botStatus.push(`Jesem na ${client.guilds.cache.size} serwerach!`);
 	let statusIndex = 0;
-	setInterval(async () => {
-		bot_status.pop();
-		bot_status.push(`Jestem na ${client.guilds.cache.size} serwerach!`);
-	}, 864e5); //`24h
+	setInterval(
+		async () =>
+			botStatus.splice(
+				-1,
+				-1,
+				`Jestem na ${client.guilds.cache.size} serwerach!`
+			),
+		864e5
+	); //`24h
 	setInterval(async () => {
 		client.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
 			activity: {
-				name: bot_status[statusIndex],
+				name: botStatus[statusIndex],
 				type: 'PLAYING',
 			},
 			status: 'online',
 		});
-		statusIndex = statusIndex == bot_status.length ? 0 : statusIndex + 1;
+		statusIndex = statusIndex === botStatus.length ? 0 : statusIndex + 1;
 	}, 6e5); // 10 min
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
