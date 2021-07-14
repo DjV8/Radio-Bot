@@ -1,8 +1,3 @@
-import logger from '../utilities/logger.mjs';
-import ytdl from 'ytdl-core';
-
-import stationFind from '../utilities/stationFind.mjs';
-
 const getMediaInfo = async (link) => {
 	class getInfo {
 		constructor(url, title, type) {
@@ -13,9 +8,11 @@ const getMediaInfo = async (link) => {
 	}
 	if (link.includes('youtube.com') || link.includes('youtu.be'))
 		try {
+			const { default: ytdl } = await import('ytdl-core');
 			const ytinfo = await ytdl.getInfo(link);
 			return new getInfo(link, ytinfo.videoDetails.title, `yt`);
 		} catch (err) {
+			const { default: logger } = await import('../utilities/logger.mjs');
 			logger.info(err);
 			return 'Nie ma takiego filmu';
 		}
@@ -26,9 +23,13 @@ const getMediaInfo = async (link) => {
 			return 'Nie ma takiego pliku';
 		}
 	else {
+		const { default: stationFind } = await import(
+			'../utilities/stationFind.mjs'
+		);
 		const stationInfo = stationFind(link);
-		if (!stationInfo) return 'Nie wiem co masz na myśli';
-		return new getInfo(stationInfo.url, stationInfo.desc, `radio`);
+		return stationInfo
+			? new getInfo(stationInfo.url, stationInfo.desc, `radio`)
+			: 'Nie wiem co masz na myśli';
 	}
 };
 

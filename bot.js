@@ -6,12 +6,6 @@ import ytdl from 'ytdl-core-discord';
 
 import logger from './utilities/logger.mjs';
 import getMediaInfo from './Commands/getMediaInfo.mjs';
-import stationsList from './Commands/stationsList.mjs';
-import loopMode from './Commands/loop.mjs';
-import queueList from './Commands/queueList.mjs';
-import skip from './Commands/skip.mjs';
-import help from './Commands/help.mjs';
-import stop from './Commands/stop.mjs';
 
 dotenv.config();
 
@@ -74,7 +68,7 @@ client.on('ready', () => {
 		input: process.stdin,
 		output: process.stdout,
 	});
-	const { bot_status: botStatus } = JSON.parse(readFileSync('status.json'));
+	const { botStatus } = JSON.parse(readFileSync('status.json'));
 	botStatus.push(`Jesem na ${client.guilds.cache.size} serwerach!`);
 	let statusIndex = 0;
 	setInterval(
@@ -85,7 +79,7 @@ client.on('ready', () => {
 				`Jestem na ${client.guilds.cache.size} serwerach!`
 			),
 		864e5
-	); //`24h
+	); //24h
 	setInterval(async () => {
 		client.user.setPresence({
 			// prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
@@ -96,7 +90,7 @@ client.on('ready', () => {
 			status: 'online',
 		});
 		statusIndex = statusIndex === botStatus.length ? 0 : statusIndex + 1;
-	}, 6e5); // 10 min
+	}, 6e5); //10min
 	logger.info(`Zalogowano jako ${client.user.tag}!`);
 	logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
 	CONSOLE.question('Wcisnij enter aby zakonczyc\n', () => {
@@ -132,9 +126,16 @@ client.on('message', async (message) => {
 			break;
 		}
 	}
+
 	if (id == -1) return message.reply('nie wie jak korzystać z bota');
-	else if (id == 0) channel.send(stationsList());
-	else if (id == 1) channel.send(help(commands));
+	else if (id == 0)
+		import('./Commands/stationsList.mjs').then((stationsList) =>
+			channel.send(stationsList.default())
+		);
+	else if (id == 1)
+		import('./Commands/help.mjs').then((help) =>
+			channel.send(help.default(commands))
+		);
 	else if (SERVERQUEUE.voiceChannel == member.voice.channel) {
 		if (id == 3) {
 			const permissions = member.voice.channel.permissionsFor(
@@ -143,14 +144,25 @@ client.on('message', async (message) => {
 			if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
 				channel.send('No bym wbił ale nie moge 😕');
 			else execute(message, SERVERQUEUE, ARGS[2]);
-		} else if (id == 2) {
-			channel.send('okok');
-			stop(SERVERQUEUE);
-		} else if (SERVERQUEUE.media)
-			if (id == 4) channel.send(queueList(SERVERQUEUE.media));
+		} else if (id == 2)
+			import('./Commands/stop.mjs').then((stop) => {
+				channel.send('okok');
+				stop.default(SERVERQUEUE);
+			});
+		else if (SERVERQUEUE.media)
+			if (id == 4)
+				import('./Commands/queueList.mjs').then((queueList) =>
+					channel.send(queueList.default(SERVERQUEUE.media))
+				);
 			else if (id == 5 || id == 6)
-				channel.send(loopMode(SERVERQUEUE, ARGS[1]));
-			else skip(SERVERQUEUE);
+				import('./Commands/loop.mjs').then((loopMode) =>
+					channel.send(loopMode.default(SERVERQUEUE, ARGS[1]))
+				);
+			else
+				import('./Commands/skip.mjs').then((skip) => {
+					channel.send('Już się robi!');
+					skip.default(SERVERQUEUE);
+				});
 		else channel.send(`Brak kolejki!`);
 	} else message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
 });
