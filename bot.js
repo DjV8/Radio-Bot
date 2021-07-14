@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import { Client } from 'discord.js';
 import { readFileSync } from 'fs';
 import { createInterface } from 'readline';
-import ytdl from 'ytdl-core-discord';
+import ytdl from 'ytdl-core';
 
 import logger from './utilities/logger.mjs';
 import getMediaInfo from './Commands/getMediaInfo.mjs';
@@ -44,8 +44,10 @@ async function play(guild) {
 	const dispatcher =
 		serverQueue.media[0].type == `yt`
 			? serverQueue.connection.play(
-					await ytdl(serverQueue.media[0].url),
-					{ type: 'opus' }
+					ytdl(serverQueue.media[0].url, {
+						filter: 'audioonly',
+						highWaterMark: 1 << 25,
+					})
 			  )
 			: serverQueue.connection.play(serverQueue.media[0].url);
 	dispatcher
