@@ -1,7 +1,6 @@
-const queueList = (queue) => {
-	let text = `\`\`\`Kolejka:\nWłaśnie leci: ${queue[0].name}`;
-	for (let i = 1; i < queue.length; i++) text += `\n${i}: ${queue[i].name}`;
-	return (text += '```');
-};
+const queueList = (queue) =>
+	`\`\`\`Kolejka:\nWłaśnie leci: ${queue[0].name} ${queue
+		.map(({ name }, index) => `\n${index}: ${name}`)
+		.slice(1)} \`\`\``;
 
 export default queueList;

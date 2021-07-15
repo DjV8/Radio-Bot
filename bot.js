@@ -5,7 +5,6 @@ import { createInterface } from 'readline';
 import ytdl from 'ytdl-core';
 
 import logger from './utilities/logger.mjs';
-import getMediaInfo from './Commands/getMediaInfo.mjs';
 
 dotenv.config();
 
@@ -13,6 +12,9 @@ const client = new Client();
 const queue = new Map();
 
 async function execute({ member, channel, guild }, serverQueue, link) {
+	const { default: getMediaInfo } = await import(
+		'./Commands/getMediaInfo.mjs'
+	);
 	const voiceChannel = member.voice.channel;
 	const mediaInfo = await getMediaInfo(link);
 	if (typeof mediaInfo === 'string') return channel.send(mediaInfo);

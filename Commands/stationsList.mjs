@@ -1,13 +1,8 @@
-import stationsLoad from '../utilities/stationsLoad.mjs';
+import stationsLoad from '../utilities/loadStations.mjs';
 
-const stationsList = () => {
-	const { stations } = stationsLoad();
-	let stationsList = '```Dostępne stacje:';
-	stations.forEach((station) => {
-		stationsList += `\n${station.shortname} - ${station.desc}`;
-	});
-
-	return (stationsList += '```');
-};
+const stationsList = () =>
+	`\`\`\`Dostępne stacje: ${stationsLoad().stations.map(
+		({ shortname, desc }) => `\n${shortname} - ${desc}`
+	)}\`\`\``;
 
 export default stationsList;

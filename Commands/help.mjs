@@ -1,7 +1,6 @@
-function help(commands) {
-	let msg = '```Dostępne polecenia:';
-	for (const command of commands)
-		msg += `\n@Radio ${command.name} - ${command.desc}`;
-	return (msg += '```');
-}
+const help = (commands) =>
+	`\`\`\`Dostępne polecenia: ${commands.map(
+		({ name, desc }) => `\n@Radio ${name} - ${desc}`
+	)} \`\`\``;
+
 export default help;
