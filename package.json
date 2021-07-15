@@ -1,46 +1,46 @@
 {
-	"name": "radio-bot",
-	"version": "1.1.1",
-	"description": "radio-bot",
-	"main": "bot.js",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/DjV8/Radio-Bot"
-	},
-	"scripts": {
-		"start": "node bot.js",
-		"test": "mocha"
-	},
-	"author": "DjV8",
-	"contributors": [
-		"Jose_bladini (https://github.com/kitsoni-g)"
-	],
-	"type": "module",
-	"dependencies": {
-		"@discordjs/opus": "^0.3.3",
-		"discord.js": "^12.5.3",
-		"dotenv": "^8.6.0",
-		"ffmpeg-static": "^4.4.0",
-		"opusscript": "^0.0.7",
-		"winston": "^3.3.3",
-		"ytdl-core": "^4.8.3"
-	},
-	"engines": {
-		"node": ">=10"
-	},
-	"license": "MIT",
-	"devDependencies": {
-		"chai": "^4.3.4",
-		"eslint": "^7.2.0",
-		"eslint-config-airbnb": "^18.2.1",
-		"eslint-config-airbnb-base": "^14.2.1",
-		"eslint-config-prettier": "^8.3.0",
-		"eslint-plugin-import": "^2.22.1",
-		"eslint-plugin-jsx-a11y": "^6.4.1",
-		"eslint-plugin-prettier": "^3.4.0",
-		"eslint-plugin-react": "^7.21.5",
-		"eslint-plugin-react-hooks": "^1.7.0",
-		"mocha": "^9.0.2",
-		"prettier": "^2.3.2"
-	}
+  "name": "radio-bot",
+  "version": "1.1.8",
+  "description": "radio-bot",
+  "main": "bot.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DjV8/Radio-Bot"
+  },
+  "scripts": {
+    "start": "node bot.js",
+    "test": "mocha"
+  },
+  "author": "DjV8",
+  "contributors": [
+    "Jose_bladini (https://github.com/kitsoni-g)"
+  ],
+  "type": "module",
+  "dependencies": {
+    "@discordjs/opus": "^0.3.3",
+    "discord.js": "^12.5.3",
+    "dotenv": "^8.6.0",
+    "ffmpeg-static": "^4.4.0",
+    "opusscript": "^0.0.7",
+    "winston": "^3.3.3",
+    "ytdl-core": "^4.8.3"
+  },
+  "engines": {
+    "node": ">=10"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "chai": "^4.3.4",
+    "eslint": "^7.2.0",
+    "eslint-config-airbnb": "^18.2.1",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-react": "^7.21.5",
+    "eslint-plugin-react-hooks": "^1.7.0",
+    "mocha": "^9.0.2",
+    "prettier": "^2.3.2"
+  }
 }

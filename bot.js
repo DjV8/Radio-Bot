@@ -36,11 +36,11 @@ async function execute({ member, channel, guild }, serverQueue, link) {
   else channel.send(`${mediaInfo.name} dodano do kolejki!`);
 }
 
-async function play(guild) {
+function play(guild) {
   const serverQueue = queue.get(guild.id);
   if (!serverQueue.media[0]) return serverQueue.voiceChannel.leave();
   const dispatcher =
-    serverQueue.media[0].type == `yt`
+    serverQueue.media[0].type === `yt`
       ? serverQueue.connection.play(
           ytdl(serverQueue.media[0].url, {
             filter: 'audioonly',
@@ -50,7 +50,7 @@ async function play(guild) {
       : serverQueue.connection.play(serverQueue.media[0].url);
   dispatcher
     .on('finish', () => {
-      if (serverQueue.loop == 'kloop') serverQueue.media.push(serverQueue.media[0]);
+      if (serverQueue.loop === 'kloop') serverQueue.media.push(serverQueue.media[0]);
       if (serverQueue.loop != 'loop') serverQueue.media.shift();
       play(guild);
     })
@@ -71,19 +71,19 @@ client.on('ready', () => {
   botStatus.push(`Jesem na ${client.guilds.cache.size} serwerach!`);
   let statusIndex = 0;
   setInterval(
-    async () => botStatus.splice(-1, -1, `Jestem na ${client.guilds.cache.size} serwerach!`),
+    () => botStatus.splice(-1, -1, `Jestem na ${client.guilds.cache.size} serwerach!`),
     864e5
   ); //24h
-  setInterval(async () => {
+  setInterval(() => {
+    // prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
     client.user.setPresence({
-      // prezencja https://discord.js.org/#/docs/main/stable/typedef/PresenceData
       activity: {
         name: botStatus[statusIndex],
         type: 'PLAYING',
       },
       status: 'online',
     });
-    statusIndex = statusIndex === botStatus.length ? 0 : statusIndex + 1;
+    statusIndex = statusIndex === botStatus.length - 1 ? 0 : statusIndex + 1;
   }, 6e5); //10min
   logger.info(`Zalogowano jako ${client.user.tag}!`);
   logger.info(`Link z zaproszeniem: ${process.env.BOT_INVITE}`);
@@ -110,36 +110,30 @@ client.on('message', async (message) => {
         loop: null,
       }
     : queue.get(message.guild.id);
-  let id = -1;
   const { commands } = JSON.parse(readFileSync('commands.json'));
-  for (const command of commands) {
-    if (ARGS[1] === command.name) {
-      id = command.id;
-      break;
-    }
-  }
+  const id = commands.findIndex(({ name }) => name === ARGS[1]);
 
-  if (id == -1) return message.reply('nie wie jak korzystać z bota');
-  else if (id == 0) {
+  if (id === -1) return message.reply('nie wie jak korzystać z bota');
+  else if (id === 0) {
     const { default: stationsList } = await import('./Commands/stationsList.mjs');
     channel.send(stationsList());
-  } else if (id == 1) {
+  } else if (id === 1) {
     const { default: help } = await import('./Commands/help.mjs');
     channel.send(help(commands));
-  } else if (SERVERQUEUE.voiceChannel == member.voice.channel) {
-    if (id == 3) {
+  } else if (SERVERQUEUE.voiceChannel === member.voice.channel) {
+    if (id === 3) {
       const permissions = member.voice.channel.permissionsFor(message.client.user);
       if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
         channel.send('No bym wbił ale nie moge 😕');
       else execute(message, SERVERQUEUE, ARGS[2]);
-    } else if (id == 2) {
+    } else if (id === 2) {
       const { default: stop } = await import('./Commands/stop.mjs');
       stop(SERVERQUEUE);
     } else if (SERVERQUEUE.media)
-      if (id == 4) {
+      if (id === 4) {
         const { default: queueList } = await import('./Commands/queueList.mjs');
         channel.send(queueList(SERVERQUEUE.media));
-      } else if (id == 5 || id == 6) {
+      } else if (id === 5 || id === 6) {
         const { default: loopMode } = await import('./Commands/loop.mjs');
         channel.send(loopMode(SERVERQUEUE, ARGS[1]));
       } else {
