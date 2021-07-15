@@ -1,6 +1,5 @@
 *.log
 .env
-.env-example
 node_modules
 obj
 bin
@@ -9,3 +8,6 @@ bin
 Music
 .vs/
 Radio-Bot.*
+.eslintrc.json
+.env-example
+.prettierrc
