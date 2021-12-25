@@ -3,10 +3,4 @@
 node_modules
 obj
 bin
-.jshintrc
-.eslintrc.js
 Music
-.vs/
-Radio-Bot.*
-.eslintrc.json
-.prettierrc

@@ -29,16 +29,6 @@
       "url": "http://217.74.72.11:8000/rmf_fm",
       "desc": "RMF FM - Radio Muzyka Fakty",
       "shortname": "rmf"
-    },
-    {
-      "url": "http://sirius.shoutca.st:8761",
-      "desc": "Radio Forever 80's",
-      "shortname": "forever80"
-    },
-    {
-      "url": "https://ecast.myautodj.com/public1channel",
-      "desc": "Synthwave Retrowave Radio",
-      "shortname": "synthwave"
     }
   ]
 }
