@@ -93,55 +93,25 @@ client.on('message', async (message) => {
 		queue.get(message.guild.id) || new queueStruct(channel, member.voice.channel);
 	const { commands } = JSON.parse(readFileSync('commands.json'));
 	const id = commands.findIndex(({ name }) => name === ARGS[1]);
-
-	switch (id) {
-		case 0:
-			channel.send(stationsList());
-			break;
-		case 1:
-			channel.send(help(commands));
-			break;
-		default:
-			if (SERVERQUEUE.voiceChannel !== member.voice.channel || !member.voice.channel) {
-				message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
-				break;
+	if (id === -1) return message.reply('nie wie jak korzystać z bota');
+	else if (id === 0) channel.send(stationsList());
+	else if (id === 1) channel.send(help(commands));
+	else if (SERVERQUEUE.voiceChannel === member.voice.channel) {
+		if (id === 3) {
+			const permissions = member.voice.channel.permissionsFor(message.client.user);
+			if (!permissions.has('CONNECT') || !permissions.has('SPEAK'))
+				channel.send('No bym wbił ale nie moge 😕');
+			else execute(message, SERVERQUEUE, ARGS[2]);
+		} else if (id === 2) stop(SERVERQUEUE.voiceChannel);
+		else if (SERVERQUEUE.media)
+			if (id === 4) channel.send(queueList(SERVERQUEUE.media));
+			else if (id === 5 || id === 6) channel.send(loopMode(SERVERQUEUE, ARGS[1]));
+			else {
+				channel.send('Już się robi!');
+				skip(SERVERQUEUE);
 			}
-			switch (id) {
-				case 3:
-					const permissions = member.voice.channel.permissionsFor(message.client.user);
-					if (!permissions.has('CONNECT'))
-						return channel.send('No bym wbił ale nie moge 😕');
-					if (!permissions.has('SPEAK'))
-						return channel.send('Sorry ale nie mogę mówić  😕');
-					execute(message, SERVERQUEUE, ARGS[2]);
-					break;
-				default:
-					if (SERVERQUEUE.media.length == 0) {
-						channel.send(`Brak kolejki!`);
-						break;
-					}
-					switch (id) {
-						case 2:
-							channel.send('Ok Ok');
-							stop(SERVERQUEUE.voiceChannel);
-							break;
-						case 4:
-							channel.send(queueList(SERVERQUEUE.media));
-							break;
-						case 5:
-						case 6:
-							channel.send(loopMode(SERVERQUEUE, ARGS[1]));
-							break;
-						case 7:
-							skip(SERVERQUEUE);
-							channel.send('Już się robi!');
-							break;
-						default:
-							message.reply('nie wie jak korzystać z bota');
-							break;
-					}
-			}
-	}
+		else channel.send(`Brak kolejki!`);
+	} else message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
 });
 client.on('error', (error) => logger.error(error));
 client.login(process.env.BOT_TOKEN);
