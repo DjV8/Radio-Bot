@@ -94,29 +94,54 @@ client.on('message', async (message) => {
 	const { commands } = JSON.parse(readFileSync('commands.json'));
 	const id = commands.findIndex(({ name }) => name === ARGS[1]);
 
-	if (id === 0) return channel.send(stationsList());
-	if (id === 1) return channel.send(help(commands));
-	if (SERVERQUEUE.voiceChannel !== member.voice.channel || !member.voice.channel)
-		return message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
-
-	if (id === 3) {
-		const permissions = member.voice.channel.permissionsFor(message.client.user);
-		if (!permissions.has('CONNECT')) return channel.send('No bym wbił ale nie moge 😕');
-		if (!permissions.has('SPEAK')) return channel.send('Sorry ale nie mogę mówić  😕');
-		return execute(message, SERVERQUEUE, ARGS[2]);
+	switch (id) {
+		case 0:
+			channel.send(stationsList());
+			break;
+		case 1:
+			channel.send(help(commands));
+			break;
+		default:
+			if (SERVERQUEUE.voiceChannel !== member.voice.channel || !member.voice.channel) {
+				message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
+				break;
+			}
+			switch (id) {
+				case 3:
+					const permissions = member.voice.channel.permissionsFor(message.client.user);
+					if (!permissions.has('CONNECT'))
+						return channel.send('No bym wbił ale nie moge 😕');
+					if (!permissions.has('SPEAK'))
+						return channel.send('Sorry ale nie mogę mówić  😕');
+					execute(message, SERVERQUEUE, ARGS[2]);
+					break;
+				default:
+					if (SERVERQUEUE.media.length == 0) {
+						channel.send(`Brak kolejki!`);
+						break;
+					}
+					switch (id) {
+						case 2:
+							channel.send('Ok Ok');
+							stop(SERVERQUEUE.voiceChannel);
+							break;
+						case 4:
+							channel.send(queueList(SERVERQUEUE.media));
+							break;
+						case 5:
+						case 6:
+							channel.send(loopMode(SERVERQUEUE, ARGS[1]));
+							break;
+						case 7:
+							skip(SERVERQUEUE);
+							channel.send('Już się robi!');
+							break;
+						default:
+							message.reply('nie wie jak korzystać z bota');
+							break;
+					}
+			}
 	}
-	if (SERVERQUEUE.media.length == 0) return channel.send(`Brak kolejki!`);
-	if (id === 2) {
-		channel.send('Ok Ok');
-		return stop(SERVERQUEUE.voiceChannel);
-	}
-	if (id === 4) return channel.send(queueList(SERVERQUEUE.media));
-	if (id === 5 || id === 6) return channel.send(loopMode(SERVERQUEUE, ARGS[1]));
-	if (id === 7) {
-		skip(SERVERQUEUE);
-		return channel.send('Już się robi!');
-	}
-	return message.reply('nie wie jak korzystać z bota');
 });
 client.on('error', (error) => logger.error(error));
 client.login(process.env.BOT_TOKEN);
