@@ -6,7 +6,7 @@ const play = (queue) => {
 	const current = queue.media[0];
 	if (!current) return stop(queue.voicechannel);
 	const { url, type } = current;
-	const stream = type === `yt` ? ytdl(url, { filter: 'audioonly' }) : url;
+	const stream = type === `yt` ? ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 }) : url;
 	const dispatcher = queue.connection.play(stream);
 	dispatcher
 		.on('finish', () => {
