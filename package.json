@@ -1,6 +1,6 @@
 {
   "name": "radio-bot",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "radio-bot",
   "main": "bot.js",
   "private": true,

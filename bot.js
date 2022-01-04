@@ -30,47 +30,50 @@ class queueStruct {
 	}
 }
 
-function play(guildId) {
-	const serverQueue = queue.get(guildId);
-	const current = serverQueue.media[0];
-	const { loop, textChannel: TC, voiceChannel: VC } = serverQueue;
+function play(ID) {
+	const serverQueue = queue.get(ID);
+	const {
+		voiceChannel: VC,
+		media: [current],
+	} = queue.get(ID);
 	if (!current) return stop(VC);
 	const dispatcher = serverQueue.connection.play(getStream(current));
 	dispatcher
 		.on('finish', () => {
+			const { loop } = queue.get(ID);
 			if (loop === 'kloop') serverQueue.media.push(current);
 			if (loop != 'loop') serverQueue.media.shift();
-			play(guildId);
+			play(ID);
 		})
 		.on('error', (err) => {
+			const { textChannel: TC } = serverQueue;
 			logger.error(err);
 			TC.send(`Coś się popierdoliło: ${err}`);
 			stop(VC);
 		});
 	dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
 }
-async function execute({ channel, guild }, serverQueue, link) {
-	const { voiceChannel } = serverQueue;
+async function execute(TC, ID, serverQueue, link) {
 	const mediaInfo = await getMediaInfo(link);
-	if (typeof mediaInfo === 'string') return channel.send(mediaInfo);
+	if (typeof mediaInfo === 'string') return TC.send(mediaInfo);
 	serverQueue.media = serverQueue.media.concat(mediaInfo);
-	queue.set(guild.id, serverQueue);
 	if (!serverQueue.connection)
 		try {
-			const connection = await voiceChannel.join();
-			logger.info(`Polaczono z kanalem ${voiceChannel.name}!`);
+			const { voiceChannel: VC } = serverQueue;
+			const connection = await VC.join();
+			logger.info(`Polaczono z kanalem ${VC.name}!`);
 			serverQueue.connection = connection;
-			channel.send(`Kolejkę możesz zawsze sprawdzić poleceniem \'queue\'`);
-			play(guild.id);
+			TC.send(`Kolejkę możesz zawsze sprawdzić poleceniem \'queue\'`);
+			play(ID);
 			connection.on('disconnect', () => {
-				queue.delete(guild.id);
-				logger.info(`Rozlaczono z kanalem ${voiceChannel.name}!`);
+				queue.delete(ID);
+				logger.info(`Rozlaczono z kanalem ${VC.name}!`);
 			});
 		} catch (err) {
 			logger.error(err);
-			return queue.delete(guild.id);
+			queue.delete(ID);
 		}
-	else channel.send(`Dodano **${mediaInfo.title || 'playlistę'}** do kolejki!`);
+	else TC.send(`Dodano **${mediaInfo.title || 'playlistę'}** do kolejki!`);
 }
 
 client.on('ready', () => {
@@ -107,6 +110,7 @@ client.on('message', async (message) => {
 			voice: { channel: VC },
 		},
 		content,
+		guild: { id: guildId },
 	} = message;
 	if (author.bot) return;
 	if (!content.startsWith(`<@!${client.user.id}>`)) return;
@@ -115,28 +119,34 @@ client.on('message', async (message) => {
 		return author.send(`Mordo nie mogę pisać`).catch((err) => logger.error(err));
 	const ARGS = content.replace(/\s+/g, ' ').split(' ');
 	if (!ARGS[1]) return TC.send('czego kurwa');
-	const SERVERQUEUE = queue.get(message.guild.id) || new queueStruct(TC, VC);
 	const { commands } = JSON.parse(readFileSync('commands.json'));
 	const id = commands.findIndex(({ name }) => name === ARGS[1]);
 	if (id === -1) message.reply('nie wie jak korzystać z bota');
 	else if (id === 0) TC.send(stationsList());
 	else if (id === 1) TC.send(help(commands));
-	else if (SERVERQUEUE.voiceChannel === VC) {
-		if (id === 3) {
-			const permissions = VC.permissionsFor(message.client.user);
-			if (!permissions.has('CONNECT')) TC.send('No bym wbił ale nie moge 😕');
-			else if (!permissions.has('SPEAK')) TC.send('Sorry ale nie mogę mówić  😕');
-			else execute(message, SERVERQUEUE, ARGS[2]);
-		} else if (id === 2) stop(SERVERQUEUE.voiceChannel);
-		else if (SERVERQUEUE.media)
-			if (id === 4) TC.send(queueList(SERVERQUEUE.media));
-			else if (id === 5 || id === 6) TC.send(loopMode(SERVERQUEUE, ARGS[1]));
+	else {
+		if (!queue.get(guildId)) queue.set(guildId, new queueStruct(TC, VC));
+		const { voiceChannel } = queue.get(guildId);
+		if (voiceChannel === VC) {
+			if (id === 3) {
+				const permissions = VC.permissionsFor(message.client.user);
+				if (!permissions.has('CONNECT')) TC.send('No bym wbił ale nie moge 😕');
+				else if (!permissions.has('SPEAK')) TC.send('Sorry ale nie mogę mówić  😕');
+				else execute(TC, guildId, queue.get(guildId), ARGS[2]);
+			} else if (id === 2) stop(voiceChannel);
 			else {
-				TC.send('Już się robi!');
-				skip(SERVERQUEUE);
+				const { media } = queue.get(guildId);
+				if (media)
+					if (id === 4) TC.send(queueList(media));
+					else if (id === 5 || id === 6) TC.send(loopMode(queue.get(guildId), ARGS[1]));
+					else {
+						TC.send('Już się robi!');
+						skip(queue.get(guildId));
+					}
+				else TC.send(`Brak kolejki!`);
 			}
-		else TC.send(`Brak kolejki!`);
-	} else message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
+		} else message.reply(' musisz być na kanale głosowym ze mną by to wykonać');
+	}
 });
 client.on('error', (error) => logger.error(error));
 client.login(process.env.BOT_TOKEN);
