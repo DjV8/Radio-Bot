@@ -30,14 +30,15 @@ class queueStruct {
 	}
 }
 
-function play(ID) {
+async function play(ID) {
 	const serverQueue = queue.get(ID);
 	const {
 		voiceChannel: VC,
 		media: [current],
 	} = queue.get(ID);
 	if (!current) return stop(VC);
-	const dispatcher = serverQueue.connection.play(getStream(current));
+	const { stream, type } = await getStream(current);
+	const dispatcher = serverQueue.connection.play(stream, type ? { type: type } : '');
 	dispatcher
 		.on('finish', () => {
 			const { loop } = queue.get(ID);

@@ -1,6 +1,14 @@
-import ytdl from 'ytdl-core';
-
-const getStream = ({ type, url }) =>
-	type === `yt` ? ytdl(url, { filter: 'audioonly', highWaterMark: 1 << 25 }) : url;
+import ytdl from 'ytdl-core-discord';
+import convertLocalMedia from './convertLocalMedia.mjs';
+const getStream = async ({ source, url }) => {
+	switch (source) {
+		case 'yt':
+			return { stream: await ytdl(url), type: 'opus' };
+		case 'local':
+			return { stream: convertLocalMedia(url), type: 'opus' };
+		default:
+			return { stream: url };
+	}
+};
 
 export default getStream;

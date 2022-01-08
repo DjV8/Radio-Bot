@@ -8,7 +8,7 @@ class playerInfo {
 	constructor(url, title, type) {
 		this.url = url;
 		this.title = title;
-		this.type = type;
+		this.source = type;
 	}
 }
 
@@ -44,7 +44,7 @@ const ytPlaylist = async (url) => {
 const mp3Info = (url) => {
 	const path = `./Music/${url}`;
 	try {
-		if (existsSync(path)) return new playerInfo(path, url, `mp3`);
+		if (existsSync(path)) return new playerInfo(path, url, `local`);
 		else return 'Nie ma takiego pliku';
 	} catch (err) {
 		logger.info(err);
