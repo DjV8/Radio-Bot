@@ -1,5 +1,5 @@
 const skip = (queue) => {
 	if (queue.loop === 'loop') queue.media.shift();
-	queue.connection.dispatcher.end();
+	queue.audioPlayer.stop();
 };
 export default skip;

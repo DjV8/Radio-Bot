@@ -1,14 +1,26 @@
-import ytdl from 'ytdl-core-discord';
+import ytdl from 'ytdl-core';
 import convertLocalMedia from './convertLocalMedia.mjs';
+import { createAudioResource, StreamType } from '@discordjs/voice';
+
 const getStream = async ({ source, url }) => {
+	let stream = null,
+		inputType = StreamType.Arbitrary;
 	switch (source) {
 		case 'yt':
-			return { stream: await ytdl(url), type: 'opus' };
+			stream = ytdl(url, {
+				filter: 'audioonly',
+				highWaterMark: 1 << 25,
+			});
+			break;
 		case 'local':
-			return { stream: convertLocalMedia(url), type: 'opus' };
+			stream = convertLocalMedia(url);
+			inputType = StreamType.Opus;
+			break;
 		default:
-			return { stream: url };
+			stream = url;
+			break;
 	}
+	return createAudioResource(stream, { inputType });
 };
 
 export default getStream;

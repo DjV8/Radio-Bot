@@ -1,5 +1,6 @@
 *.log
-.env*
+.env
+config.json
 node_modules
 obj
 bin

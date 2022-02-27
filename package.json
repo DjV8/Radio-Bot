@@ -18,15 +18,18 @@
   ],
   "type": "module",
   "dependencies": {
-    "@discordjs/opus": "^0.5.0",
-    "discord.js": "^12.5.3",
-    "dotenv": "^8.6.0",
-    "ffmpeg-static": "^4.4.0",
+    "@discordjs/builders": "^0.12.0",
+    "@discordjs/opus": "^0.5.3",
+    "@discordjs/rest": "^0.3.0",
+    "@discordjs/voice": "^0.8.0",
+    "discord-api-types": "^0.27.3",
+    "discord.js": "^13.6.0",
+    "ffmpeg-static": "^4.4.1",
+    "libsodium-wrappers": "^0.7.9",
     "opusscript": "^0.0.8",
     "prism-media": "^1.3.2",
-    "winston": "^3.3.3",
-    "ytdl-core": "^4.9.2",
-    "ytdl-core-discord": "^1.3.1",
+    "winston": "^3.6.0",
+    "ytdl-core": "^4.10.1",
     "ytpl": "^2.2.3"
   },
   "engines": {
@@ -34,8 +37,8 @@
   },
   "license": "MIT",
   "devDependencies": {
-    "chai": "^4.3.4",
-    "mocha": "^9.0.2",
-    "prettier": "^2.3.2"
+    "chai": "^4.3.6",
+    "mocha": "^9.2.1",
+    "prettier": "^2.5.1"
   }
 }
