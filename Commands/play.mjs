@@ -1,4 +1,5 @@
 import getStream from '../utilities/getStream.mjs';
+import stop from '../utilities/stop.mjs';
 
 const play = async ({ voiceChannel: VC, media: [current], audioPlayer }) => {
 	if (!current) return stop(VC.guild.id);

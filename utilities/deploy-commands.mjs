@@ -22,10 +22,11 @@ globalCommands.map((command) => command.toJSON());
 const rest = new REST({ version: '9' }).setToken(token);
 
 //global
-/* rest.put(Routes.applicationCommands(clientId), { body: commands })
+/* rest.put(Routes.applicationCommands(clientId), { body: globalCommands })
 	.then(() => console.log('Successfully registered application commands.'))
 	.catch(console.error); */
 
+//local
 rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: globalCommands })
 	.then(() => console.log('Successfully registered application commands.'))
 	.catch(console.error);

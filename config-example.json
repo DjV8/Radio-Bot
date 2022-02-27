@@ -1,5 +1,6 @@
 {
 "clientId": "discord bot ID",
+"guildId": "server ID, only needed for local deplopy", 
 "token":"bot token",
 "invite":"invite link"
 }

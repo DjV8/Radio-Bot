@@ -10,7 +10,8 @@
   },
   "scripts": {
     "start": "node bot.js",
-    "test": "mocha"
+    "test": "mocha",
+    "deploy": "node ./utilities/deploy-commands.mjs"
   },
   "author": "DjV8",
   "contributors": [
