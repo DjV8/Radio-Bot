@@ -1,6 +1,6 @@
 ﻿# test-bot
 
-You can add your own mp3 files to the bot - create a music folder and drag them there.
+You can add your own mp3 files to the bot - create a "Music" folder in the main directory and place your files there.
 
 station pattern:
 {
