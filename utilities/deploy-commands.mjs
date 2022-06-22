@@ -21,12 +21,35 @@ globalCommands.map((command) => command.toJSON());
 
 const rest = new REST({ version: '9' }).setToken(token);
 
+// add commands
 //global
-/* rest.put(Routes.applicationCommands(clientId), { body: globalCommands })
+/*rest.put(Routes.applicationCommands(clientId), { body: globalCommands })
 	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error); */
+	.catch(console.error);*/
 
 //local
 rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: globalCommands })
 	.then(() => console.log('Successfully registered application commands.'))
 	.catch(console.error);
+
+// remove commands
+
+//global
+/*rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
+	const promises = [];
+	for (const command of data) {
+		const deleteUrl = `${Routes.applicationCommands(clientId)}/${command.id}`;
+		promises.push(rest.delete(deleteUrl));
+	}
+	return Promise.all(promises);
+});*/
+
+//local
+/*rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
+	const promises = [];
+	for (const command of data) {
+		const deleteUrl = `${Routes.applicationGuildCommands(clientId, guildId)}/${command.id}`;
+		promises.push(rest.delete(deleteUrl));
+	}
+	return Promise.all(promises);
+});*/
