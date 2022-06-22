@@ -32,7 +32,7 @@ class queueStruct {
 		this.voiceChannel = voiceChannel;
 		this.audioPlayer = createAudioPlayer();
 		this.media = [];
-		this.loop = null;
+		this.loop = 0; // 0 - normal , 1 - single , 2 - queue
 	}
 }
 
@@ -55,22 +55,14 @@ async function execute(interaction) {
 			serverQueue.audioPlayer
 				.on(AudioPlayerStatus.Idle, () => {
 					const { loop, media } = queue.get(ID);
-					switch (loop) {
-						case 'kloop':
-							media.push(media.shift());
-							break;
-						case 'loop':
-							break;
-						default:
-							media.shift();
-							break;
-					}
+					if (loop == 0) media.shift();
+					else if (loop == 2) media.push(media.shift());
 					play(queue.get(ID));
 				})
 				.on('error', (err) => {
-					const { textChannel: TC } = queue.get(ID);
+					const { textChannel } = queue.get(ID);
 					logger.error(err);
-					TC.send(`Coś się popierdoliło: ${err}`);
+					textChannel.send(`Coś się popierdoliło: ${err}`);
 					stop(VC.guild.id);
 				});
 			connection.on(VoiceConnectionStatus.Destroyed, () => {
@@ -78,6 +70,7 @@ async function execute(interaction) {
 				logger.info(`Rozlaczono z kanalem ${VC.name}!`);
 			});
 		} catch (err) {
+			queue.get(ID).textChannel.reply(`Coś poszło nie tak: ${err}`);
 			logger.error(err);
 			queue.delete(ID);
 		}
@@ -133,16 +126,14 @@ client.on('interactionCreate', async (interaction) => {
 
 	const { commands } = JSON.parse(readFileSync('commands.json'));
 	const id = commands.findIndex(({ name }) => name === commandName);
-	const isOnSameVC = Boolean(queue.get(guildId)?.voiceChannel === VC);
-	const isMedia = Boolean(queue.get(guildId)?.media);
-	switch (true) {
-		case id == 0:
+	switch (id) {
+		case 0:
 			interaction.reply(stationsList());
 			break;
-		case id == 1:
+		case 1:
 			interaction.reply(help(commands));
 			break;
-		case id == 3:
+		case 3:
 			if (!queue.get(guildId)) queue.set(guildId, new queueStruct(interaction, VC));
 			const botVoicePermissions = VC.permissionsFor(bot);
 			if (!botVoicePermissions.has(Permissions.FLAGS.CONNECT))
@@ -151,25 +142,29 @@ client.on('interactionCreate', async (interaction) => {
 				return interaction.reply(`Sorry ale nie mogę mówić na "${VC.name}"  😕`);
 			execute(interaction);
 			break;
-		case id == 4 && isMedia:
+		case 4:
 			interaction.reply(queueList(queue.get(guildId).media));
 			break;
-		case id == 2 && isOnSameVC && isMedia:
-			stop(VC.guild.id);
-			interaction.reply('Już wychodzę smh');
-			break;
-		case (id == 5 || id == 6) && isOnSameVC && isMedia:
-			interaction.reply(loopMode(queue.get(guildId), commandName));
-			break;
-		case id == 7 && isOnSameVC && isMedia:
-			interaction.reply('Już się robi!');
-			skip(queue.get(guildId));
-			break;
 		default:
-			if (!isMedia) interaction.reply(`Brak kolejki!`);
-			else if (!isOnSameVC)
-				interaction.reply(' Musisz być na kanale głosowym ze mną by to wykonać');
-			break;
+			// sprawdzanie czy jest kolejka
+			if (!queue.get(guildId)?.media) return interaction.reply(`Brak kolejki!`);
+			// sprawdzanie czy jest na tym samym VC
+			if (!queue.get(guildId)?.voiceChannel === VC)
+				return interaction.reply(' Musisz być na kanale głosowym ze mną by to wykonać');
+			switch (id) {
+				case 2:
+					stop(VC.guild.id);
+					interaction.reply('Już wychodzę smh');
+					break;
+				case 5:
+				case 6:
+					interaction.reply(loopMode(queue.get(guildId), id - 4));
+					break;
+				case 7:
+					skip(queue.get(guildId));
+					interaction.reply('Już się robi!');
+					break;
+			}
 	}
 });
 client.on('error', (error) => logger.error(error));

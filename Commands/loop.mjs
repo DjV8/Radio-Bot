@@ -1,6 +1,6 @@
 const loopMode = (queue, loopMode) => {
-	queue.loop = queue.loop !== loopMode ? loopMode : null;
-	return `Powtarzanie ${loopMode === 'kloop' ? 'kolejki ' : ''}jest ${
+	queue.loop = queue.loop !== loopMode ? loopMode : 0;
+	return `Powtarzanie ${loopMode === 2 ? 'kolejki ' : ''}jest ${
 		queue.loop ? 'włączone' : `wyłączone`
 	}`;
 };
