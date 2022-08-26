@@ -1,6 +1,6 @@
 import { SlashCommandBuilder } from '@discordjs/builders';
-import { REST } from '@discordjs/rest';
-import { Routes } from 'discord-api-types/v9';
+const { REST } = require('@discordjs/rest');
+const { Routes } = require('discord.js');
 const { clientId, token, guildId } = JSON.parse(readFileSync('config.json'));
 import { readFileSync } from 'fs';
 
@@ -19,7 +19,7 @@ const globalCommands = commands.map(({ name, desc, parameter }) => {
 });
 globalCommands.map((command) => command.toJSON());
 
-const rest = new REST({ version: '9' }).setToken(token);
+const rest = new REST({ version: '10' }).setToken(token);
 
 // add commands
 //global

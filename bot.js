@@ -4,7 +4,8 @@ import {
 	getVoiceConnection,
 	VoiceConnectionStatus,
 } from '@discordjs/voice';
-import { Client, Intents, Permissions } from 'discord.js';
+//import { Client, GatewayIntentBits, Permissions } from 'discord.js';
+import { Client, GatewayIntentBits } from 'discord.js';
 import { readFileSync } from 'fs';
 import { createInterface } from 'readline';
 const { token, invite } = JSON.parse(readFileSync('config.json'));
@@ -22,7 +23,7 @@ import stationsList from './Commands/stationsList.mjs';
 import play from './Commands/play.mjs';
 
 const client = new Client({
-	intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES, Intents.FLAGS.GUILD_MESSAGES],
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
 const queue = new Map();
 
@@ -116,9 +117,8 @@ client.on('interactionCreate', async (interaction) => {
 		guildId,
 	} = interaction;
 	const textChannel = client.channels.cache.get(channelId);
-	const botTextPermissions = textChannel.permissionsFor(bot);
-	if (!interaction.isCommand() || !guildId) return;
-	if (!botTextPermissions.has(Permissions.FLAGS.SEND_MESSAGES)) {
+	if (!interaction.type === 2 || !guildId) return;
+	if (!interaction.isRepliable()) {
 		return interaction.user
 			.send(`Mordo nie mogę pisać na kanale "${textChannel.name}"`)
 			.catch((err) => logger.error(err));
@@ -135,11 +135,11 @@ client.on('interactionCreate', async (interaction) => {
 			break;
 		case 3:
 			if (!queue.get(guildId)) queue.set(guildId, new queueStruct(interaction, VC));
-			const botVoicePermissions = VC.permissionsFor(bot);
-			if (!botVoicePermissions.has(Permissions.FLAGS.CONNECT))
-				return interaction.reply(`No bym wbił na kanał "${VC.name}" ale nie moge 😕`);
-			if (!botVoicePermissions.has(Permissions.FLAGS.SPEAK))
-				return interaction.reply(`Sorry ale nie mogę mówić na "${VC.name}"  😕`);
+			//const botVoicePermissions = VC.permissionsFor(bot);
+			//if (!botVoicePermissions.has(Permissions.FLAGS.CONNECT))
+			//	return interaction.reply(`No bym wbił na kanał "${VC.name}" ale nie moge 😕`);
+			//if (!botVoicePermissions.has(Permissions.FLAGS.SPEAK))
+			//	return interaction.reply(`Sorry ale nie mogę mówić na "${VC.name}"  😕`);
 			execute(interaction);
 			break;
 		case 4:
