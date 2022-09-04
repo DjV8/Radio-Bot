@@ -1,55 +1,75 @@
-import { SlashCommandBuilder } from '@discordjs/builders';
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord.js');
+import { REST } from '@discordjs/rest';
+import { Routes } from 'discord.js';
+import { readdirSync, readFileSync } from 'fs';
 const { clientId, token, guildId } = JSON.parse(readFileSync('config.json'));
-import { readFileSync } from 'fs';
 
-const { commands } = JSON.parse(readFileSync('commands.json'));
+const commands = [];
+const commandPath = './Commands/';
 
-const globalCommands = commands.map(({ name, desc, parameter }) => {
-	if (parameter) {
-		const { item, info, req } = parameter;
-		return new SlashCommandBuilder()
-			.setName(name)
-			.setDescription(desc)
-			.addStringOption((option) =>
-				option.setName(item).setDescription(info).setRequired(req)
-			);
-	} else return new SlashCommandBuilder().setName(name).setDescription(desc);
-});
-globalCommands.map((command) => command.toJSON());
+const comandFiles = readdirSync(commandPath).filter((file) =>
+  file.endsWith('.mjs')
+);
+
+for (const file of comandFiles) {
+  await import(`../Commands/${file}`).then(({ command }) => {
+    commands.push(command.data);
+  });
+}
 
 const rest = new REST({ version: '10' }).setToken(token);
 
 // add commands
 //global
-/*rest.put(Routes.applicationCommands(clientId), { body: globalCommands })
-	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error);*/
-
+const deployGlobal = () => {
+  rest
+    .put(Routes.applicationCommands(clientId), { body: globalCommands })
+    .then(() => console.log('Successfully registered application commands.'))
+    .catch(console.error);
+};
 //local
-rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: globalCommands })
-	.then(() => console.log('Successfully registered application commands.'))
-	.catch(console.error);
-
+const deployLocal = () => {
+  rest
+    .put(Routes.applicationGuildCommands(clientId, guildId), { body: commands })
+    .then(() => console.log('Successfully registered application commands.'))
+    .catch(console.error);
+};
 // remove commands
 
-//global
-/*rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
-	const promises = [];
-	for (const command of data) {
-		const deleteUrl = `${Routes.applicationCommands(clientId)}/${command.id}`;
-		promises.push(rest.delete(deleteUrl));
-	}
-	return Promise.all(promises);
-});*/
+const removeGlobal = () => {
+  rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
+    const promises = [];
+    for (const command of data) {
+      const deleteUrl = `${Routes.applicationCommands(clientId)}/${command.id}`;
+      promises.push(rest.delete(deleteUrl));
+    }
+    return Promise.all(promises);
+  });
+};
 
 //local
-/*rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
-	const promises = [];
-	for (const command of data) {
-		const deleteUrl = `${Routes.applicationGuildCommands(clientId, guildId)}/${command.id}`;
-		promises.push(rest.delete(deleteUrl));
-	}
-	return Promise.all(promises);
-});*/
+const removeLocal = () => {
+  rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
+    const promises = [];
+    for (const command of data) {
+      const deleteUrl = `${Routes.applicationGuildCommands(
+        clientId,
+        guildId
+      )}/${command.id}`;
+      promises.push(rest.delete(deleteUrl));
+    }
+    return Promise.all(promises);
+  });
+};
+
+export const reDeplo = (scope) => {
+  if (scope == 'local') {
+    removeLocal();
+    deployLocal();
+    return;
+  }
+  if (scope == 'global') {
+    removeGlobal();
+    deployGlobal();
+    return;
+  }
+};

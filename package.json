@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node bot.js",
     "test": "mocha",
-    "deploy": "node ./utilities/deploy-commands.mjs"
+    "deploy": "npx run-func ./utilities/deploy-commands.mjs"
   },
   "author": "DjV8",
   "contributors": [
