@@ -18,14 +18,22 @@ for (const file of comandFiles) {
 
 const rest = new REST({ version: '10' }).setToken(token);
 
-// add commands
 //global
+
 const deployGlobal = () => {
   rest
-    .put(Routes.applicationCommands(clientId), { body: globalCommands })
+    .put(Routes.applicationCommands(clientId), { body: commands })
     .then(() => console.log('Successfully registered application commands.'))
     .catch(console.error);
 };
+
+const removeGlobal = () => {
+  rest
+    .put(Routes.applicationCommands(clientId), { body: [] })
+    .then(() => console.log('Successfully deleted all application commands.'))
+    .catch(console.error);
+};
+
 //local
 const deployLocal = () => {
   rest
@@ -33,43 +41,25 @@ const deployLocal = () => {
     .then(() => console.log('Successfully registered application commands.'))
     .catch(console.error);
 };
-// remove commands
 
-const removeGlobal = () => {
-  rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
-    const promises = [];
-    for (const command of data) {
-      const deleteUrl = `${Routes.applicationCommands(clientId)}/${command.id}`;
-      promises.push(rest.delete(deleteUrl));
-    }
-    return Promise.all(promises);
-  });
-};
-
-//local
 const removeLocal = () => {
-  rest.get(Routes.applicationGuildCommands(clientId, guildId)).then((data) => {
-    const promises = [];
-    for (const command of data) {
-      const deleteUrl = `${Routes.applicationGuildCommands(
-        clientId,
-        guildId
-      )}/${command.id}`;
-      promises.push(rest.delete(deleteUrl));
-    }
-    return Promise.all(promises);
-  });
+  rest
+    .put(Routes.applicationGuildCommands(clientId, guildId), { body: [] })
+    .then(() => console.log('Successfully deleted all guild commands.'))
+    .catch(console.error);
 };
 
-export const reDeplo = (scope) => {
-  if (scope == 'local') {
-    removeLocal();
-    deployLocal();
-    return;
-  }
-  if (scope == 'global') {
-    removeGlobal();
-    deployGlobal();
-    return;
-  }
-};
+export function local() {
+  removeLocal();
+  deployLocal();
+  return;
+}
+
+export function global() {
+  removeGlobal();
+  deployGlobal();
+  return;
+}
+
+removeLocal();
+global();

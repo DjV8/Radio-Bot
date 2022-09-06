@@ -11,7 +11,7 @@
   "scripts": {
     "start": "node bot.js",
     "test": "mocha",
-    "deploy": "npx run-func ./utilities/deploy-commands.mjs"
+    "deploy": "node ./utilities/deploy-commands.mjs"
   },
   "author": "DjV8",
   "contributors": [
@@ -29,7 +29,7 @@
     "opusscript": "^0.0.8",
     "prism-media": "^1.3.4",
     "winston": "^3.8.1",
-    "ytdl-core": "^4.11.1",
+    "ytdl-core": "^4.11.2",
     "ytpl": "^2.3.0"
   },
   "engines": {
