@@ -52,9 +52,8 @@ async function execute(interaction) {
         playFile(queue.get(ID));
       })
       .on('error', async (err) => {
-        const { textChannel } = queue.get(ID);
         logger.error(err);
-        textChannel.send(`Coś się popierdoliło: ${err}`);
+        queue.get(ID).textChannel.send(`Coś się popierdoliło: ${err}`);
         await import('./utilities/stop.mjs').then(({ stop }) => {
           stop(VC.guild.id);
         });
@@ -64,7 +63,7 @@ async function execute(interaction) {
       logger.info(`Rozlaczono z kanalem ${VC.name}!`);
     });
   } catch (err) {
-    queue.get(ID).textChannel.reply(`Coś poszło nie tak: ${err}`);
+    queue.get(ID).textChannel.send(`Coś poszło nie tak: ${err}`);
     logger.error(err);
     queue.delete(ID);
   }
